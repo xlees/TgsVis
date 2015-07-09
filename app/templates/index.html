@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title></title>
+
+        <link href="{{ url_for('static', filename='bootstrap-3.3.4/css/bootstrap.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='jquery-ui-1.11.2/jquery-ui.min.css') }}" rel="stylesheet">
+
+        <script src="{{ url_for('static', filename='jquery-1.11.1.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='bootstrap-3.3.4/js/bootstrap.min.js') }}"></script>
+
+    </head>
+
+    <body onload="initialize">
+
+        <div class="row" style="margin:20px">
+            <div class="col-md-2 col-md-offset-0">
+                <button id="btn-import" class="btn btn-default" type="button">导入所有卡口</button>
+            </div>
+
+            <div class="col-md-1 col-md-offset-0">
+                <button id="btn-adj" disabled="disabled" class="btn btn-default" type="button">卡口关联图</button>
+            </div>
+
+            <div class="col-md-5 col-md-offset-1">
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="输入车牌号进行查询...">
+                    <span class="input-group-btn">
+                        <button id="query-vehicle" class="btn btn-default" type="submit">GO</button>
+                    </span>
+                </div><!-- /input-group -->
+            </div>
+
+            <div id="div-all" class="col-md-2 col-md-offset-0" style="visibility:hidden;">
+                <div class="btn-group btn-group-justified" role="group" data-toggle="buttons-radio">
+                    <div class="btn-group" role="group">
+                        <button id="btn-all" type="button" class="btn btn-primary">所有卡点</button>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <button id="btn-avail" type="button" class="btn">可用卡点</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="container" style="margin:0 auto; width:90%; height:600px"></div>
+
+        <script src="http://webapi.amap.com/maps?v=1.3&key=063ac5fa44fda47c4d3fc3b03671de31&callback=initialize">
+        </script>
+
+        <script>
+            function initialize() {
+
+                var position = new AMap.LngLat(114.348873333333,30.5522166666667);
+                fmap = new AMap.Map("container", {
+
+                    resizeEnable: true,
+                    view: new AMap.View2D({//创建地图二维视口
+                        center: position,//创建中心点坐标
+                        zoom: 11, //设置地图缩放级别
+                        rotation: 0 //设置地图旋转角度
+                    }),
+                    lang:"zh_cn"//设置地图语言类型，默认：中文简体
+                });         //创建地图实例
+
+                fmap.plugin(["AMap.ToolBar","AMap.OverView","AMap.Scale"],function() {
+                  // 加载工具条
+                  tool = new AMap.ToolBar({
+                    direction:true,//隐藏方向导航
+                    ruler:true,//隐藏视野级别控制尺
+                    autoPosition:false//禁止自动定位
+                  });
+                  fmap.addControl(tool);
+
+                  //加载鹰眼
+                  var view = new AMap.OverView();
+                  fmap.addControl(view);
+
+                  //加载比例尺
+                  scale = new AMap.Scale();
+                  fmap.addControl(scale);
+                });
+            }
+
+        </script>
+
+        <script>
+            infoWindow = new AMap.InfoWindow({
+                offset: new AMap.Pixel(0,0),
+                // content: info.join("<br>")
+            });
+            markers = [];
+
+            function mark(data) {
+                // data =
+                for (var i=0; i<data.length; i++) {
+
+                    kk[data[i][2]] = {
+                        'kkid': data[i][0],
+                        'kkmc': data[i][1],
+                        'cloud_id': data[i][2],
+                        'lng': data[i][3],
+                        'lat': data[i][4]
+                    };
+
+                    var marker;
+                    if ($.inArray(data[i][2], kk_avail) < 0) {  // unavailable kakou
+                        // console.log(data[i][2]);
+                        marker = new AMap.Marker({
+                            map: fmap,
+                            position: new AMap.LngLat(data[i][3], data[i][4]),
+                            offset: new AMap.Pixel(0,0),
+                            icon: "{{ url_for('static', filename='m7.png') }}",
+                            extData: kk[data[i][2]]
+                        });
+                    }
+                    else {
+                        marker = new AMap.Marker({
+                            map: fmap,
+                            position: new AMap.LngLat(data[i][3], data[i][4]),
+                            offset: new AMap.Pixel(0,0),
+                            icon: "{{ url_for('static', filename='m1.png') }}",
+                            extData: kk[data[i][2]]
+                        });
+                    }
+
+                    markers.push(marker);
+                }
+
+                console.log(markers);
+
+                for (var i=0; i<markers.length; i++) {
+
+                    // add listener
+                    AMap.event.addListener(markers[i],"click", function(e) {
+                        // alert(e.lnglat);
+
+                        // if (infoWindow.getIsOpen()) {
+                        //     infoWindow.close();
+                        // }
+
+                        extData = this.getExtData();
+                        console.log(extData);
+
+                        var info = [];
+                        info.push("<b>卡点编号</b>："+extData['kkid']);
+                        info.push("<b>卡点名称</b>："+extData['kkmc']);
+                        info.push("<b>云编号</b>："+extData['cloud_id']);
+
+                        infoWindow.setContent(info.join("<br/>"));
+                        infoWindow.open(fmap, e.lnglat);
+                    });
+                }
+
+                fmap.setCenter(new AMap.LngLat(data[0][3], data[0][4]));
+                fmap.setFitView();
+            }
+
+            function toggle_mark(ttype) {
+                fmap.clearMap();
+                markers = [];
+
+                var kakou = {};
+
+                if (ttype >= 0) {   // all
+                    kakou = $.extend(true, {}, kk);
+                }
+                else {
+
+                    for (var cid in kk) {
+
+                        if ($.inArray(cid,kk_avail) < 0)
+                            continue;
+
+                        kakou[cid] = $.extend(true,{},kk[cid]);
+                    }
+                }
+
+                for (var cid in kakou) {
+                    var marker = new AMap.Marker({
+                        map: fmap,
+                        position: new AMap.LngLat(kk[cid]['lng'], kk[cid]['lat']),
+                        offset: new AMap.Pixel(0,0),
+                        icon: "{{ url_for('static', filename='m1.png') }}",
+                        extData: kk[cid]
+                    });
+
+                    AMap.event.addListener(marker,"click", function(e) {
+
+                        extData = this.getExtData();
+                        console.log(extData);
+
+                        var info = [];
+                        info.push("<b>卡点编号</b>："+extData['kkid']);
+                        info.push("<b>卡点名称</b>："+extData['kkmc']);
+                        info.push("<b>云编号</b>："+extData['cloud_id']);
+
+                        infoWindow.setContent(info.join("<br/>"));
+                        infoWindow.open(fmap, e.lnglat);
+                    });
+                }
+
+                for (cid in kakou) {
+                    delete kakou[cid];
+                }
+            }
+
+            aobj = $("#btn-all");
+            $("#btn-all").click(function() {
+                aobj.removeClass('btn-default btn-primary');
+                $(this).addClass('btn-primary');
+                aobj = $(this);
+
+                toggle_mark(1);
+            });
+
+            $("#btn-avail").click(function() {
+
+                aobj.removeClass('btn-default btn-primary');
+                $(this).addClass('btn-primary');
+                aobj = $(this);
+
+                toggle_mark(-1);
+            });
+
+            $('#btn-import').click(function() {
+
+                $("#div-all").css("visibility","visible");
+                $("#btn-adj").removeAttr("disabled");
+                fmap.clearMap();
+
+                // aobj.removeClass('btn-default btn-primary');
+
+                $.getJSON('/load-tgs', {}, function success(json) {
+
+                    console.log(json);
+
+                    kk = {};
+                    kk_avail = json.avail;
+
+                    // console.log(kk_avail);
+                    mark(json.data);
+                });
+            });
+
+            $('#btn-adj').click(function() {
+                // fmap.clearMap();
+
+                $.getJSON('/get-adj',{},function(json) {
+                    // console.log(json.data);
+
+
+                    for (var i=0; i<json.data.length; i++) {
+
+                        if (!kk.hasOwnProperty(json.data[i][0]) || !kk.hasOwnProperty(json.data[i][1])) continue
+
+                        var start = new AMap.LngLat(kk[json.data[i][0]]['lng'], kk[json.data[i][0]]['lat']);
+                        var end = new AMap.LngLat(kk[json.data[i][1]]['lng'], kk[json.data[i][1]]['lat']);
+
+                        var arr = [start,end];
+                        // arr.push(start);
+                        // arr.push(end);
+
+                        var polyline = new AMap.Polyline({
+                            map: fmap,
+                            path: arr,
+                            strokeColor: "gray",
+                            strokeOpacity: 0.7,
+                            strokeWeight: 4.6
+                        });
+                        AMap.event.addListener(polyline,"click",function(e) {
+
+                            alert("mouseenter");
+                        });
+
+                        var circle1 = new AMap.Circle({
+                          map:fmap,//要显示覆盖物的地图对象
+                          center:start,//圆心，基点
+                          radius:25,//半径
+                          strokeColor: "darkblue",//线颜色
+                          strokeOpacity: 1,//线透明度
+                          strokeWeight: 1,//线宽
+                          fillColor: "darkblue",//填充颜色
+                          fillOpacity: 0.9//填充透明度
+                        });
+
+                        var circle2 = new AMap.Circle({
+                          map:fmap,//要显示覆盖物的地图对象
+                          center:end,//圆心，基点
+                          radius:25,//半径
+                          strokeColor: "darkblue",//线颜色
+                          strokeOpacity: 1,//线透明度
+                          strokeWeight: 1,//线宽
+                          fillColor: "darkblue",//填充颜色
+                          fillOpacity: 0.9//填充透明度
+                        });
+                    }
+
+                    //调整视野到合适的位置及级别
+                    // fmap.setFitView();
+                });
+
+                // console.log(kk[json.data[0][0]])
+            });
+
+            $('#query-vehicle').click(function() {
+
+                $.ajax({
+                    type: "GET",
+                    url: "/query-vehicle",
+                    data: {},
+                    success: function(json) {
+                        console.log(json);
+
+                        if (typeof(kk) == "undefined") {
+                            alert("请先导入卡点");
+                            return;
+                        }
+
+                        if (json.data.length == 0) {
+                            return;
+                        }
+
+                        // mark the trajectory
+                        var trajectory = json.data[0]['trajectory'];
+                        for (var i=0; i<trajectory.length; i++) {
+
+                            loc = kk[trajectory[i][1]];
+
+                            var marker = new AMap.Marker({
+                                map: fmap,
+                                position: new AMap.LngLat(loc[0],loc[1]),
+                                offset: new AMap.Pixel(0,0),
+                                icon: "{{ url_for('static', filename='m1.png') }}"
+                            });
+
+                            setTimeout(function() {}, 1000);
+                        }
+
+                    },
+                    error: function(json) {
+
+                    }
+                });
+            });
+        </script>
+
+    </body>
+
+
+</html>
