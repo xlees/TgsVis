@@ -26,7 +26,7 @@
 
             <div class="col-md-5 col-md-offset-1">
                 <div class="input-group">
-                    <input type="text" class="form-control" placeholder="输入车牌号进行查询...">
+                    <input id="input-numb" type="text" class="form-control" placeholder="输入车牌号进行查询...">
                     <span class="input-group-btn">
                         <button id="query-vehicle" class="btn btn-default" type="submit">GO</button>
                     </span>
@@ -266,35 +266,50 @@
                         var polyline = new AMap.Polyline({
                             map: fmap,
                             path: arr,
-                            strokeColor: "gray",
-                            strokeOpacity: 0.7,
-                            strokeWeight: 4.6
+                            strokeColor: "black",
+                            strokeOpacity: json.data[i][2],
+                            strokeWeight: 4.5
                         });
                         AMap.event.addListener(polyline,"click",function(e) {
 
                             alert("mouseenter");
                         });
 
-                        var circle1 = new AMap.Circle({
-                          map:fmap,//要显示覆盖物的地图对象
-                          center:start,//圆心，基点
-                          radius:25,//半径
-                          strokeColor: "darkblue",//线颜色
-                          strokeOpacity: 1,//线透明度
-                          strokeWeight: 1,//线宽
-                          fillColor: "darkblue",//填充颜色
-                          fillOpacity: 0.9//填充透明度
-                        });
+                        // var circle1 = new AMap.Circle({
+                        //     map:fmap,//要显示覆盖物的地图对象
+                        //     center:start,//圆心，基点
+                        //     radius:42,//半径
+                        //     strokeColor: "blue",//线颜色
+                        //     strokeOpacity: json.volume[json.data[i][0]],//线透明度
+                        //     strokeWeight: 1,//线宽
+                        //     fillColor: "blue",//填充颜色
+                        //     fillOpacity: json.volume[json.data[i][0]]  //填充透明度
+                        // });
 
-                        var circle2 = new AMap.Circle({
-                          map:fmap,//要显示覆盖物的地图对象
-                          center:end,//圆心，基点
-                          radius:25,//半径
-                          strokeColor: "darkblue",//线颜色
-                          strokeOpacity: 1,//线透明度
-                          strokeWeight: 1,//线宽
-                          fillColor: "darkblue",//填充颜色
-                          fillOpacity: 0.9//填充透明度
+                        // var circle2 = new AMap.Circle({
+                        //     map:fmap,//要显示覆盖物的地图对象
+                        //     center:end,//圆心，基点
+                        //     radius:42,//半径
+                        //     strokeColor: "blue",//线颜色
+                        //     strokeOpacity: json.volume[json.data[i][0]],//线透明度
+                        //     strokeWeight: 1,//线宽
+                        //     fillColor: "blue",//填充颜色
+                        //     fillOpacity: json.volume[json.data[i][1]]   //填充透明度
+                        // });
+                    }
+
+                    for (var cid in json.volume) {
+
+                        var center = new AMap.LngLat(kk[cid]['lng'], kk[cid]['lat']);
+                        var circle = new AMap.Circle({
+                            map:fmap,//要显示覆盖物的地图对象
+                            center: center,//圆心，基点
+                            radius: 42,//半径
+                            strokeColor: "blue",//线颜色
+                            strokeOpacity: json.volume[cid],//线透明度
+                            strokeWeight: 1,//线宽
+                            fillColor: "blue",//填充颜色
+                            fillOpacity: json.volume[cid]  //填充透明度
                         });
                     }
 
@@ -306,44 +321,139 @@
             });
 
             $('#query-vehicle').click(function() {
+                // alert("vehicle");
+
+                cont = $('#input-numb').val().trim();
+                if (cont == "") {
+                    console.log("null input!");
+                    return;
+                }
 
                 $.ajax({
                     type: "GET",
-                    url: "/query-vehicle",
-                    data: {},
+                    url: "/query-tgs",
+                    data: {"numb":cont},
                     success: function(json) {
                         console.log(json);
 
-                        if (typeof(kk) == "undefined") {
-                            alert("请先导入卡点");
-                            return;
+                        if (json.status == 1) {
+
+                            alert(json.msg);
                         }
+                        else if (json.status == 0) {
 
-                        if (json.data.length == 0) {
-                            return;
-                        }
+                            // fmap.clearMap();
 
-                        // mark the trajectory
-                        var trajectory = json.data[0]['trajectory'];
-                        for (var i=0; i<trajectory.length; i++) {
-
-                            loc = kk[trajectory[i][1]];
+                            lng = json.data.main[3]
+                            lat = json.data.main[4]
+                            loc = new AMap.LngLat(lng,lat)
 
                             var marker = new AMap.Marker({
                                 map: fmap,
-                                position: new AMap.LngLat(loc[0],loc[1]),
-                                offset: new AMap.Pixel(0,0),
-                                icon: "{{ url_for('static', filename='m1.png') }}"
+                                position: loc,
+                                offset: new AMap.Pixel(0,-11),
+                                icon: "{{ url_for('static', filename='query.png') }}",
+                                extData: json.data.main,
+                            });
+                            AMap.event.addListener(marker,"click", function(e) {
+
+                                extData = this.getExtData();
+                                console.log(extData);
+
+                                var info = [];
+                                info.push("<b>卡点编号</b>："+extData[0]);
+                                info.push("<b>卡点名称</b>："+extData[1]);
+                                info.push("<b>云编号</b>："+extData[2]);
+
+                                infoWindow.setContent(info.join("<br/>"));
+                                infoWindow.open(fmap, e.lnglat);
                             });
 
-                            setTimeout(function() {}, 1000);
+                            // plot upstream tgs
+                            for (var cid in json.data.upstream) {
+                                console.log("cid=", cid);
+                                // console.log(kk);
+
+                                var cpoint = new AMap.LngLat(kk[cid]['lng'], kk[cid]['lat']);
+
+                                var marker = new AMap.Marker({
+                                    map: fmap,
+                                    position: cpoint,
+                                    offset: new AMap.Pixel(0,0),
+                                    icon: "{{ url_for('static', filename='m3.png') }}",
+                                    extData: kk[cid]
+                                });
+                                AMap.event.addListener(marker,"click", function(e) {
+                                    extData = this.getExtData();
+                                    // console.log(extData);
+
+                                    var info = [];
+                                    info.push("<b>卡点编号</b>："+extData['kkid']);
+                                    info.push("<b>卡点名称</b>："+extData['kkmc']);
+                                    info.push("<b>云编号</b>："+extData['cloud_id']);
+
+                                    infoWindow.setContent(info.join("<br/>"));
+                                    infoWindow.open(fmap, e.lnglat);
+                                });
+
+                                var start = cpoint;
+                                var end = loc;
+                                var polyline = new AMap.Polyline({
+                                    map: fmap,
+                                    path: [start,end],
+                                    strokeColor: "black",
+                                    strokeOpacity: json.data.upstream[cid],
+                                    strokeWeight: 4.8
+                                });
+                            }
+
+                            fmap.setCenter(loc);
+                            fmap.setFitView();
+                            // fmap.setZoom(11);
                         }
-
-                    },
-                    error: function(json) {
-
+                        else {
+                            console.log("null input!");
+                        }
                     }
                 });
+
+                // $.ajax({
+                //     type: "GET",
+                //     url: "/query-vehicle",
+                //     data: {"numb":$('#input-numb').text().strip()},
+                //     success: function(json) {
+                //         console.log(json);
+
+                //         if (typeof(kk) == "undefined") {
+                //             alert("请先导入卡点");
+                //             return;
+                //         }
+
+                //         if (json.data.length == 0) {
+                //             return;
+                //         }
+
+                //         // mark the trajectory
+                //         var trajectory = json.data[0]['trajectory'];
+                //         for (var i=0; i<trajectory.length; i++) {
+
+                //             loc = kk[trajectory[i][1]];
+
+                //             var marker = new AMap.Marker({
+                //                 map: fmap,
+                //                 position: new AMap.LngLat(loc[0],loc[1]),
+                //                 offset: new AMap.Pixel(0,0),
+                //                 icon: "{{ url_for('static', filename='m1.png') }}"
+                //             });
+
+                //             setTimeout(function() {}, 1000);
+                //         }
+
+                //     },
+                //     error: function(json) {
+
+                //     }
+                // });
             });
         </script>
 
