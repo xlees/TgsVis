@@ -115,6 +115,9 @@ def timeit(func, *args, **kwargs):
         pass
 
 def get_thrift_client(host,port):
+    """
+    get thrift client
+    """
     try:
         # Make socket
         transport = TSocket.TSocket(host, port)
@@ -122,9 +125,6 @@ def get_thrift_client(host,port):
         transport = TTransport.TBufferedTransport(transport)
         # Wrap in a protocol
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
-
-        # srv2 = Demo2.Client(TMultiplexedProtocol(protocol,"Demo2"))
-        # srv1 = Dai.Client(TMultiplexedProtocol(protocol,"Dai"))
 
         # Create a client to use the protocol encoder
         client = Hbase.Client(protocol)

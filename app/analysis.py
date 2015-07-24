@@ -195,17 +195,17 @@ def transform(row):
             loc[1])
 
 
-def read_tgs_info(fname):
-    cols = ['KKID','KKMC','CLOUD_ID','X','Y']
+# def read_tgs_info(fname):
+#     cols = ['KKID','KKMC','CLOUD_ID','X','Y']
 
-    tgs_info = pd.read_csv(fname)[cols]
-    res = tgs_info.apply(transform, axis=1).tolist()
+#     tgs_info = pd.read_csv(fname)[cols]
+#     res = tgs_info.apply(transform, axis=1).tolist()
 
-    ret = {}
-    for item in res:
-        ret[item[2]] = (item[3],item[4])
+#     ret = {}
+#     for item in res:
+#         ret[item[2]] = (item[3],item[4])
 
-    return ret
+#     return ret
 
 def filter_pairs():
     # adj = read_adj(os.path.join(root_dir,"adj.txt"))
@@ -266,16 +266,121 @@ def filter_pairs():
 
     print '%d pairs filterd finally.' % (len(ret))
 
+def _stat_first_tgs_single(cid, begtime,endtime):
+    tbl = "tr_bay61"
+
+    (client,trpt) = get_thrift_client(host,port)
+
+    trpt.open()
+
+    scan = htt.TScan()
+    scan.columns = ['cf:']
+    scan.caching = 110
+    # scan.filterString = "RowFilter(=, 'substring:%s') AND KeyOnlyFilter()" % (numb)
+    # scan.filterString = "KeyOnlyFilter()"
+    scan.startRow = struct.pack(">2sQ", byte_cid(cid), begtime)
+    scan.stopRow = struct.pack(">2sQ", byte_cid(cid), endtime)
+
+    scanner = client.scannerOpenWithScan(tbl,scan,None)
+
+    veh = {}
+    while 1:
+        dataset = client.scannerGetList(scanner,buf_max_size)
+        # print '%d: %d records fetched.' % (cid, len(dataset))
+
+        for elem in dataset:
+            vehicle = (elem.row[10:], struct.unpack(">B",elem.columns["cf:"].value[35:36]))
+
+            info = (struct.unpack(">Q", elem.row[2:10])[0], unbyte_cid(elem.row[:2]))
+            if not veh.has_key(elem.row[10:]):
+                veh[vehicle] = info
+
+            if info[0] < veh[vehicle][0]:
+                veh[vehicle] = info
+
+        if len(dataset) < buf_max_size:
+            break
+
+    trpt.close()
+
+    print '%s,%s: %d vehicles.' % (mp.current_process().name, cid, len(veh))
+
+    return veh
+
+def _combine(x,y):
+    res = {}
+
+    s = set(x) | set(y)
+    for veh in s:
+        if x.has_key(veh) and y.has_key(veh):
+            res[veh] = x[veh] if x[veh][0] < y[veh][0] else y[veh]
+        elif x.has_key(veh) and (not y.has_key(veh)):
+            res[veh] = x[veh]
+        elif y.has_key(veh) and (not x.has_key(veh)):
+            res[veh] = y[veh]
+
+    # for veh,info in x.iteritems():
+    #     if not y.has_key(veh):
+    #         res[veh] = info
+    #     else:
+    #         if info[0] < y[veh][0]:
+    #             res[veh] = info
+    #         else:
+    #             res[veh] = y[veh]
+
+    return res
+
+import random
+def stat_first_tgs(stime,etime):
+
+    begtime = long(time.mktime(stime.timetuple())*1000)
+    endtime = long(time.mktime(etime.timetuple())*1000)
+
+    tgsinfo = read_tgs_info()
+    vehicles = {}
+
+    test = random.sample(tgsinfo.keys(), 100)
+
+    from multiprocessing.pool import Pool
+
+    pool = Pool()
+    result = [pool.apply_async(_stat_first_tgs_single, args=(int(cid),begtime,endtime)) for cid in tgsinfo.keys()]
+    pool.close()
+    pool.join()
+
+    result1 = [elem.get() for elem in result]
+
+    print 'joining....'
+    result2 = reduce(_combine, result1)
+
+    print 'totally %d vehicles. ' % (len(result2))
+    # print type(result2)
+
+    c = Counter()
+    for veh, info in result2.iteritems():
+        c[info[1]] += 1
+
+    print 'writing result into file...'
+    with open(os.path.join(root_dir,"result","first_tgs.txt"),"w") as f:
+        c1 = c.most_common()
+        # print c1[0]
+        # for cid,count in c1.iteritems():
+        for elem in c1:
+            line = "%5d,%6d\n" % (elem[0],elem[1])
+            f.write(line)
+    print 'finished.'
 
 
 if __name__ == '__main__':
     # filter_pairs()
 
-    begtime = datetime(2015,6,1)
-    endtime = datetime(2015,6,2)
+    begtime = datetime(2015,6,1,6,0,0)
+    endtime = datetime(2015,6,1,8,0,0)
 
-    numb = u"鄂AF8R13".encode('gbk')
-    query_traj(begtime,endtime,numb)
+    stat_first_tgs(begtime,endtime)
+
+    # numb = u"鄂AF8R13".encode('gbk')
+    # query_traj(begtime,endtime,numb)
 
     # s = time.time()
 
