@@ -55,22 +55,29 @@ def query_vehicle():
 def get_adj_tgs():
 
     volume = read_tgs_volume("data/volume.txt")
-    adj = read_adj("data/week_adj.txt")
-    assoc = calc_assoc(volume,adj)
 
-    result = assoc.most_common()
-    filtered = filter(lambda x: x[1]>0.1, result)
+    adj = Counter()
+    with open("filterd_pairs.txt","r") as f:
+        for line in f.readlines():
+            pair = tuple(line.split(":")[0].split(","))
+            adj[pair] = float(line.split(":")[1].split(",")[0])
 
-    print '%d edges...' % (len(filtered))
+    # adj = read_adj("data/week_adj.txt")
+    # assoc = calc_assoc(volume,adj)
+
+    # result = assoc.most_common()
+    # filtered = filter(lambda x: x[1]>0.1, result)
+
+    print '%d edges...' % (len(adj))
 
     # standardize
     vol = volume.most_common()
     vol1 = [(item[0],float(item[1]-vol[-1][1]) / (vol[0][1]-vol[-1][1])) for item in vol]
-    # print vol1[:3]
 
     ret = {
         'status': 0,
-        'data': [[item[0][0],item[0][1],item[1]] for item in filtered],
+        # 'data': [[item[0][0],item[0][1],item[1]] for item in filtered],
+        'data': [[val[0][0],val[0][1],val[1]] for val in adj.items()],
         'volume': dict(vol1),
     }
 
@@ -158,7 +165,7 @@ def query_tgs_info():
         # print 'upstream:', upstream
         u0 = upstream.most_common(10)
         u1 = [(item[0], float(item[1]-u0[-1][1]) / (u0[0][1]-u0[-1][1])) for item in u0]
-        u2 = [item if item[1]>0.2 else (item[0], 0.1) for item in u1]
+        u2 = [item if item[1]>0.5 else (item[0], 0.1) for item in u1]
         top10 = dict(u2)
 
         print 'u1: ', u2

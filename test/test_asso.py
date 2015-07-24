@@ -77,7 +77,7 @@ def read_adj(fname):
             indegree = p_indegree.findall(line)
             for d in indegree:
                 item = d.split("-")
-                ret[(item[0],main)] = int(item[1])
+                ret[(item[0],main)] = float(item[1])
 
             if cnt > 0:
                 print main
@@ -88,11 +88,8 @@ def read_adj(fname):
 
 
 if __name__ == '__main__':
-    # print sys.path[:2]
-
     tgs_info = get_tgs_info("tgsinfo.csv")
     print "%d tgs fetched." % (len(tgs_info))
-    # print tgs_info[579]
 
     fvolume = "data/volume.txt"
     volume = read_tgs_volume(fvolume)
@@ -101,14 +98,11 @@ if __name__ == '__main__':
     for i in xrange(10):
         print "%s,%s: %d" % (volume0[i][0], tgs_info[volume0[i][0]], volume0[i][1])
 
-    # with open("")
-
     # read edges
     adj = read_adj("data/week_adj.txt")
     print '\nmost common edges:'
     for val in adj.most_common(10):
         try:
-            # print adj[i][0][0], adj[i][0][1]
             print "%s,%s -> %s,%s: %d" % (val[0][0], tgs_info[val[0][0]],
                                           val[0][1], tgs_info[val[0][1]],
                                           val[1])
