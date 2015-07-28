@@ -1,0 +1,43 @@
+
+html {height:100%}
+
+body {height:100%;margin:0px;padding:0px}
+
+#container-map {
+    height:100%;
+    /*width:100%;*/
+    /*position: fixed;*/
+    /*bottom: 0;*/
+    /*left: 0;*/
+}
+/*hide baidu logo*/
+.anchorBL{
+   display:none;
+}
+
+.datetime {
+    margin-bottom: 10px;
+}
+
+.btn {
+    padding: 14px 24px;
+    border: 0 none;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+.btn:focus, .btn:active:focus, .btn.active:focus {
+    outline: 0 none;
+}
+
+.btn-primary {
+    background: #0099cc;
+    color: #ffffff;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active, .btn-primary.active, .open > .dropdown-toggle.btn-primary {
+    background: #33a6cc;
+}
+.btn-primary:active, .btn-primary.active {
+    background: #007299;
+    box-shadow: none;
+}

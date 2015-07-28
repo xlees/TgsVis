@@ -8,10 +8,26 @@ import json
 from app.helper import EvilTransform
 from test.test_asso import *
 from shared import *
+from analysis import load_od_data
+from dateutil.parser import parse
 
 cols = ['KKID','KKMC','CLOUD_ID','X','Y']
 tgsinfo = read_tgs_info()
 
+
+@app.route('/request-od-data')
+def query_od_data():
+    index = _calc_dtime_index(request.args.get("datetime").strip())
+    o_or_d = request.args.get("od").strip()
+
+    od = load_od_data(index,o_or_d)
+
+    ret = {
+        'tgs': [elem[0] for elem in od],
+        'count': [elem[1] for elem in od],
+    }
+
+    return jsonify(ret)
 
 @app.route('/charts')
 def od_charts():
@@ -20,6 +36,23 @@ def od_charts():
     }
 
     return render_template("od.html")
+
+def _calc_dtime_index(dtime):
+    granula = 10*60
+
+    dtime = parse(dtime)   # drop seconds
+    dtime = dtime.replace(second=0,microsecond=0)
+
+    begtime = dtime.replace(hour=0,minute=0)
+    index = (dtime-begtime).total_seconds() / granula
+
+    return int(index)
+
+@app.route('/calc-time-index')
+def calc_time_index():
+    index = _calc_dtime_index(request.args.get("datetime"))
+
+    return jsonify({'index':int(index)})
 
 @app.route('/get-o-data')
 def get_odata():

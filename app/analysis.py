@@ -24,6 +24,30 @@ import hbase.ttypes as htt
 host, port = "10.2.25.110", 9090
 
 
+def load_od_data(index, odtype="o"):
+    if not odtype in ["o","d"]:
+        print 'error: neither o nor d.'
+        return []
+
+    fname = os.path.join(root_dir,"data","od",odtype,str(index*10),"part-00000")
+    print "open %s " % (fname)
+
+    result = []
+    with open(fname,"r") as f:
+        for line in f.readlines():
+            tmp = line[1:-2].split(",")
+            # print tmp
+
+            o = tmp[0]
+            cnt = int(tmp[1])
+
+            result.append((o,cnt))
+
+    # sort
+    result.sort(key=lambda x:x[1],reverse=True)
+
+    return result
+
 def load_edge_info():
     fname = os.path.join(root_dir,"data","adj_0601.txt")
 
@@ -418,12 +442,15 @@ if __name__ == '__main__':
     begtime = datetime(2015,6,1,0,0,0)
     endtime = datetime(2015,6,1,12,0,0)
 
+    result = load_od_data(42,"d")
+    print result[:5]
+
     # stat_first_tgs(begtime,endtime)
 
-    numb = u"鄂AF8R13".encode('gbk')
-    traj = query_vehicle_trajetory(numb,"02",begtime,endtime)
-    for elem in traj:
-        print elem
+    # numb = u"鄂AF8R13".encode('gbk')
+    # traj = query_vehicle_trajetory(numb,"02",begtime,endtime)
+    # for elem in traj:
+    #     print elem
 
     # numb = u"鄂AF8R13".encode('gbk')
     # query_traj(begtime,endtime,numb)

@@ -1,0 +1,194 @@
+
+<div class="container-fluid">
+
+    <!-- <form role="form"> -->
+        <div class="form-group">
+            <div id="od-select" class="btn-group" data-toggle="buttons">
+                <label class="btn btn-default active">
+                    <input type="radio" name="options" id="o" value="o">出行(O)
+                </label>
+                <label class="btn btn-default">
+                    <input type="radio" name="options" id="d" value="d">到达(D)
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="sr-only" for="name">时间范围</label>
+            <input type="text" id="timerange" class="form-control datetime-picker" placeholder="时间范围，10分钟粒度">
+        </div>
+
+     <!--    <div class="form-group">
+            <label class="sr-only" for="name">结束时间</label>
+            <input type="text" id="endtime" class="form-control datetime-picker" placeholder="结束时间">
+        </div> -->
+
+        <div class="row">
+            <div class="col-md-4">
+                <button id="btn-submit" type="submit" class="btn btn-primary">查询</button>
+            </div>
+
+            <div class="col-md-4">
+                <button id="btn-remove" type="submit" class="btn btn-danger">
+                    <span class="glyphicon glyphicon-chevron-up" aria-hidden="true"></span>
+                    隐藏统计图
+                </button>
+            </div>
+        </div>
+
+    <!-- </form> -->
+
+</div>
+
+<script>
+    od = "o";
+
+    $('#btn-remove').hide();
+    $('#btn-remove').click(function(event) {
+        /* Act on the event */
+        chart.clear()
+
+        $('#row1').animate({
+            height:"0"
+        }, "slow");
+        $('#tgs-chart').css("height","0");
+        $('#tgs-chart').css("width","0");
+
+        $('#btn-remove').hide();
+    });
+
+    function draw_callback(ec) {
+
+        if (typeof(chart) != "undefined") {
+            chart.clear();
+        }
+
+        chart = ec.init(document.getElementById("tgs-chart"));     // 为dom对象
+
+        console.log(tgs);
+
+        // var grpName = ['O-出行','D-到达'];
+        var options = {
+            title : {
+                text: '卡口OD分布情况',
+                // subtext: '纯属虚构'
+            },
+            tooltip : {
+                trigger: 'axis'
+            },
+            dataZoom : {
+                show : true,
+                realtime : true,
+                start : 0,
+                end : 15
+            },
+            // legend: {
+            //     data: grpName
+            // },
+            // calculable : true,
+            yAxis : [
+                {
+                    type : 'value',
+                    boundaryGap : [0, 0.01]
+                    // axisLabel : {
+                    //     formatter: '{value} 辆'
+                    // }
+                }
+            ],
+            xAxis : [
+                {
+                    type : 'category',
+                    data : tgs,
+                    // axisLabel: {
+                    //     rotate: 45
+                    // }
+                }
+            ],
+            series : [
+                {
+                    // name: grpName[0],
+                    type: 'bar',
+                    data: count,
+                    markPoint : {
+                        data : [
+                            {type : 'min', name : '最低出行数'},
+                            {type : 'max', name : '最高出行数'}
+                        ],
+                        effect: {
+                            color: 'red'
+                        }
+                    },
+                },
+            ]
+        };
+
+        chart.setOption(options);
+    };
+
+    $(document).ready(function() {
+        $(".datetime-picker").datetimepicker({
+            // showOn: "button",
+            // buttonImage: "./css/images/icon_calendar.gif",
+            // buttonImageOnly: true,
+            showSecond: false,
+            timeFormat: 'HH:mm:ss',
+            stepHour: 1,
+            stepMinute: 1,
+            stepSecond: 1,
+        });
+    });
+
+    $('#btn-submit').click(function(event) {
+
+        var timerange = $('#timerange').val();
+        if (timerange.length == 0) {
+            alert("时间为空！");
+            return;
+        }
+
+        $.getJSON("/request-od-data",{'datetime':timerange,'od':od},function(json) {
+            // console.log(json.tgs);
+
+            tgs = json.tgs;
+            count = json.count;
+
+            // console.log(count);
+
+            $('#row1').animate({
+                height: "330px",
+                width: "100%"
+            }, 800,"linear",function() {
+
+                $('#btn-remove').show();
+            });
+
+            $('#tgs-chart').css("height","320px");
+            $('#tgs-chart').css("width","100%");
+
+            require.config({
+                paths: {
+                     echarts: "{{ url_for('static', filename='echarts-2.2.0/build/dist') }}"
+                }
+            });
+
+            require(
+                [
+                    'echarts',
+                    'echarts/chart/bar' // 使用柱状图就加载bar模块，按需加载
+                    // 'echarts/chart/line'
+                    // 'echarts/chart/scatter'
+                ],
+            draw_callback);
+        });
+
+        // $('#heading').html(timerange+od);
+        // alert(od);
+    });
+
+    $("#od-select input").on("change", function () {
+        od = $(this).val();
+        // console.log(od);
+    });
+
+    // $('.od').button('toggle');
+</script>
