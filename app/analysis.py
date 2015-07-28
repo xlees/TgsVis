@@ -370,14 +370,60 @@ def stat_first_tgs(stime,etime):
             f.write(line)
     print 'finished.'
 
+def query_vehicle_trajetory(numb,ptype,stime,etime):
+    tbl = "tr_plate61"
+
+    begtime = long(time.mktime(stime.timetuple())*1000)
+    endtime = long(time.mktime(etime.timetuple())*1000)
+
+    (client,trpt) = get_thrift_client(host,port)
+
+    trpt.open()
+
+    scan = htt.TScan()
+    scan.columns = ['cf:']
+    scan.caching = 110
+    # scan.filterString = "RowFilter(=, 'substring:%s') AND KeyOnlyFilter()" % (numb)
+    # scan.filterString = "KeyOnlyFilter()"
+    scan.startRow = struct.pack(">10sQ", numb,begtime)
+    scan.stopRow = struct.pack(">10sQ", numb, endtime)
+
+    scanner = client.scannerOpenWithScan(tbl,scan,None)
+
+    traj = []
+    while 1:
+        dataset = client.scannerGetList(scanner,buf_max_size)
+        for elem in dataset:
+            numb_type = struct.unpack("B",elem.columns['cf:'].value[35:36])[0]
+            if numb_type != int(ptype):
+                continue
+
+            passtime = datetime.fromtimestamp(struct.unpack(">Q",elem.row[10:18])[0]/1000.0).strftime("%Y-%m-%d %H:%M:%S")
+            cid = unbyte_cid(elem.row[18:20])
+            drivedir = struct.unpack("B",elem.columns['cf:'].value[37:38])[0]
+
+            traj.append((passtime,cid,drivedir))
+
+        if len(dataset) < buf_max_size:
+            break
+
+    trpt.close()
+
+    return traj
+
 
 if __name__ == '__main__':
     # filter_pairs()
 
-    begtime = datetime(2015,6,1,6,0,0)
-    endtime = datetime(2015,6,1,8,0,0)
+    begtime = datetime(2015,6,1,0,0,0)
+    endtime = datetime(2015,6,1,12,0,0)
 
-    stat_first_tgs(begtime,endtime)
+    # stat_first_tgs(begtime,endtime)
+
+    numb = u"鄂AF8R13".encode('gbk')
+    traj = query_vehicle_trajetory(numb,"02",begtime,endtime)
+    for elem in traj:
+        print elem
 
     # numb = u"鄂AF8R13".encode('gbk')
     # query_traj(begtime,endtime,numb)
