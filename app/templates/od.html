@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>OD</title>
+    <link rel="stylesheet" href="">
+
+    <link href="{{ url_for('static', filename='bootstrap-3.3.4/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='jquery-ui-1.11.2/jquery-ui.min.css') }}" rel="stylesheet">
+
+    <script src="{{ url_for('static', filename='jquery-1.11.1.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='bootstrap-3.3.4/js/bootstrap.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='echarts-2.2.0/build/dist/echarts.js') }}"></script>
+</head>
+<body>
+    <div id="chart-container" style="margin: 0 auto; width:90%; height:500px;"></div>
+
+    <script>
+        function draw_callback(ec) {
+
+            if (typeof(chart_stats) != "undefined") {
+                chart_stats.dispose();
+            }
+
+            chart = ec.init(document.getElementById("chart-container"));     // 为dom对象
+
+            var grpName = ['O-出行','D-到达'];
+            var options = {
+                title : {
+                    text: 'O-D统计',
+                    // subtext: '纯属虚构'
+                },
+                tooltip : {
+                    trigger: 'axis'
+                },
+                dataZoom : {
+                    show : true,
+                    realtime : true,
+                    start : 20,
+                    end : 40
+                },
+                // legend: {
+                //     data: grpName
+                // },
+                // calculable : true,
+                yAxis : [
+                    {
+                        type : 'value',
+                        boundaryGap : [0, 0.01]
+                        // axisLabel : {
+                        //     formatter: '{value} 辆'
+                        // }
+                    }
+                ],
+                xAxis : [
+                    {
+                        type : 'category',
+                        data : datetime,
+                        // axisLabel: {
+                        //     rotate: 45
+                        // }
+                    }
+                ],
+                series : [
+                    {
+                        name: grpName[0],
+                        type: 'line',
+                        data: o,
+                        markPoint : {
+                            data : [
+                                {type : 'min', name : '最低出行数'},
+                                {type : 'max', name : '最高出行数'}
+                            ],
+                            effect: {
+                                color: 'red'
+                            }
+                        },
+                    },
+                    {
+                        name: grpName[1],
+                        type: 'line',
+                        data: d,
+                        markPoint : {
+                            data : [
+                                {type : 'min', name : '最低出行数'},
+                                {type : 'max', name : '最高出行数'}
+                            ],
+                            effect: {
+                                color: 'blue'
+                            }
+                        },
+                    }
+                ]
+            };
+
+            chart.setOption(options);
+        };
+
+        $.getJSON("/get-o-data",{}, function success(json) {
+            // console.log(json.o);
+
+            datetime = json.datetime;
+            o = json.o;
+
+            $.getJSON("get-d-data",{}, function success(json2) {
+
+                d = json2.d;
+
+                // plot
+                require.config({
+                    paths: {
+                         echarts: "{{ url_for('static', filename='echarts-2.2.0/build/dist') }}"
+                    }
+                });
+
+                require(
+                    [
+                        'echarts',
+                        // 'echarts/chart/bar' // 使用柱状图就加载bar模块，按需加载
+                        'echarts/chart/line'
+                        // 'echarts/chart/scatter'
+                    ],
+                draw_callback);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -7,8 +7,47 @@ import json
 
 from app.helper import EvilTransform
 from test.test_asso import *
+from shared import *
 
 cols = ['KKID','KKMC','CLOUD_ID','X','Y']
+tgsinfo = read_tgs_info()
+
+
+@app.route('/charts')
+def od_charts():
+    context = {
+
+    }
+
+    return render_template("od.html")
+
+@app.route('/get-o-data')
+def get_odata():
+    fname = os.path.join(root_dir,"result","o1.txt")
+
+    dtime = []
+    o = []
+    with open(fname,"r") as f:
+        for line in f.readlines():
+            tmp = line[:-1].split(",")
+            dtime.append(tmp[0])
+            o.append(int(tmp[1]))
+
+    return jsonify({'datetime':dtime, 'o':o})
+
+@app.route('/get-d-data')
+def get_ddata():
+    fname = os.path.join(root_dir,"result","d1.txt")
+
+    dtime = []
+    d = []
+    with open(fname,"r") as f:
+        for line in f.readlines():
+            tmp = line[:-1].split(",")
+            dtime.append(tmp[0])
+            d.append(int(tmp[1]))
+
+    return jsonify({'datetime':dtime, 'd':d})
 
 @app.route('/')
 @app.route('/index')
