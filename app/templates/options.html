@@ -43,19 +43,69 @@
 <script>
     od = "o";
 
+    var opts = {
+        width : 250,     // 信息窗口宽度
+        height: 100,     // 信息窗口高度
+        title : "卡口详细信息",  // 信息窗口标题
+        enableMessage: false
+    }
+    infowin = new BMap.InfoWindow("", opts);
+
     $('#btn-remove').hide();
     $('#btn-remove').click(function(event) {
         /* Act on the event */
-        chart.clear()
+        chart.clear();
 
         $('#row1').animate({
             height:"0"
         }, "slow");
+        // $('#row1').slideUp(700)
         $('#tgs-chart').css("height","0");
         $('#tgs-chart').css("width","0");
 
         $('#btn-remove').hide();
     });
+
+    function eHandler(param) {
+
+        if (param.type == "click") {
+            tgs = tgsinfo[param.name];
+
+            console.log(param.name+": "+param.value+" is "+tgs['kkmc']);
+
+            var p0 = new BMap.Point(tgs['lng'], tgs['lat']);
+            map.centerAndZoom(p0, 13);
+
+            if (typeof(marker) != "undefined")
+                map.removeOverlay(marker);
+
+            infowin.setContent(tgs['kkid']+", "+tgs['kkmc']);
+            map.openInfoWindow(infowin, p0);
+
+            marker = new BMap.Marker(p0, {
+                offset: new BMap.Size(-17,20)
+            });        // 创建标注
+            map.addOverlay(marker);                     // 将标注添加到地图中
+            marker.addEventListener("click", function(){
+
+                 infowin.setContent(tgs['kkid']+", "+tgs['kkmc']);
+                 map.openInfoWindow(infowin,this.getPosition());
+            });
+
+            // var p = new BMap.Point(tgsinfo[param.name]['lng'], tgsinfo[param.name]['lat']);
+            // $.getJSON('/gps-to-bd',{'lng':tgs['lng'], 'lat':tgs['lat']}, function(json) {
+
+            //     // console.log('gps conversion status:'+json.status);
+
+
+            // });
+        }
+        else {
+
+        }
+
+        console.log(param);
+    }
 
     function draw_callback(ec) {
 
@@ -65,7 +115,11 @@
 
         chart = ec.init(document.getElementById("tgs-chart"));     // 为dom对象
 
-        console.log(tgs);
+        var ecConfig = require('echarts/config');
+        chart.on(ecConfig.EVENT.CLICK, eHandler);
+        // chart.on(ecConfig.EVENT.DBLCLICK, eHandler);
+        // chart.on(ecConfig.EVENT.HOVER, eHandler);
+        // chart.on(ecConfig.EVENT.DATA_ZOOM, eHandler);
 
         // var grpName = ['O-出行','D-到达'];
         var options = {
@@ -179,6 +233,34 @@
                     // 'echarts/chart/scatter'
                 ],
             draw_callback);
+
+            // draw hot
+            var hdata = [];
+            var mcount = 0;
+            for (var i=0; i<tgs.length; i++) {
+                hdata.push({
+                    'lng': tgsinfo[tgs[i]]['lng'],
+                    'lat': tgsinfo[tgs[i]]['lat'],
+                    'count': count[i]
+                });
+
+                if (count[i] > mcount)
+                    mcount = count[i];
+            }
+
+            map.panTo(new BMap.Point(hdata[0]['lng'],hdata[0]['lat']), {noAnimation:false});
+            map.setZoom(12);
+
+            if (typeof(ol_heatmap) != "undefined")
+                map.removeOverlay(ol_heatmap);
+
+            if (typeof(marker) != "undefined")
+                map.removeOverlay(marker);
+
+            ol_heatmap = new BMapLib.HeatmapOverlay({"radius":24});
+            map.addOverlay(ol_heatmap);
+            ol_heatmap.setDataSet({data:hdata, max:mcount+2});
+            ol_heatmap.show();
         });
 
         // $('#heading').html(timerange+od);

@@ -12,6 +12,9 @@ import pandas as pd
 from dateutil.rrule import *
 from datetime import datetime,timedelta
 import struct
+import requests as req
+import base64
+import json
 
 from app.helper import EvilTransform
 
@@ -79,12 +82,18 @@ def read_tgs_info():
     ret = {}
     for item in res:
         info = {
-            'kkid': item[0],
-            'kkmc': item[1],
+            'kkid': item[0].decode('gbk'),
+            'kkmc': item[1].decode('utf-8'),    # to unicode
             'lng': item[3],
             'lat': item[4],
             'cid': item[2],
         }
+
+        loc = (info['lng'], info['lat'])
+        loc_bd = gps2baidu(loc)
+
+        info['lng'] = loc_bd[0]
+        info['lat'] = loc_bd[1]
 
         if ret.has_key(item[2]):
             if not duplicated.has_key(item[2]):
@@ -94,6 +103,8 @@ def read_tgs_info():
             continue
 
         ret[item[2]] = info
+
+    # print type(ret['10588']['kkid']), type(ret['10588']['kkid'].decode('gbk'))
 
     print '%d duplicate items.' % (len(duplicated))
 
@@ -113,6 +124,20 @@ def read_tgs_info():
 def timeit(func, *args, **kwargs):
     def wrapper():
         pass
+
+def gps2baidu(loc):
+    url = "http://api.map.baidu.com/ag/coord/convert"
+    params = {'from':0, 'to':4, 'x':loc[0], 'y':loc[1]}
+    r = req.get(url, params=params)
+
+    loc1 = json.loads(r.text)
+    if loc1['error'] != 0:
+        return (None,None)
+
+    ret = (float(base64.b64decode(loc1['x'])), float(base64.b64decode(loc1['y'])))
+
+    return ret
+
 
 def get_thrift_client(host,port):
     """

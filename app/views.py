@@ -7,13 +7,36 @@ import json
 
 from app.helper import EvilTransform
 from test.test_asso import *
-from shared import *
+import shared
+# from shared import read_tgs_info
 from analysis import load_od_data
 from dateutil.parser import parse
 
 cols = ['KKID','KKMC','CLOUD_ID','X','Y']
-tgsinfo = read_tgs_info()
+tgsinfo = shared.read_tgs_info()
 
+
+@app.route('/gps-to-bd')
+def gps_to_bd():
+    lng = request.args.get('lng',type=float)
+    lat = request.args.get('lat',type=float)
+
+    loc = shared.gps2baidu((lng,lat))
+    if loc[0] is None and loc[1] is None:
+        return jsonify({'status':1,'msg':'gps loc convert failure.'})
+
+    return jsonify({'status':0,'data':loc})
+
+@app.route('/request-tgs-info')
+def response_tgs_info():
+    print tgsinfo['10588']
+
+    result = {
+        'status':0,
+        'data': tgsinfo,
+    }
+
+    return json.dumps(result,ensure_ascii=False)
 
 @app.route('/request-od-data')
 def query_od_data():
@@ -154,47 +177,6 @@ def get_adj_tgs():
     }
 
     return jsonify(ret)
-
-# @app.route('/get-adj1')
-# def get_adj_tgs1():
-#     from itertools import combinations
-#     import random
-#     import re
-
-#     thresh = 80
-#     p_dest = re.compile("\(\d+")
-#     p = re.compile("\d+-\d+-\d+")
-
-#     pairs = []
-#     with open("adj.txt","r") as f:
-#         lines = f.read().split("\n")
-#         for line in lines:
-#             try:
-#                 dest = p_dest.match(line).group()[1:]
-#             except AttributeError,e:
-#                 print 'parse error'
-#                 print line
-#                 continue
-
-#             for item in p.findall(line):
-#                 source = item.split("-")
-#                 if int(source[2]) < thresh:
-#                     continue
-#                 pairs.append((source[0], dest))
-#         # avail.extend(f.read().split("\n"))
-
-#     print 'totally %d pairs' % (len(pairs))
-
-#     # comb = []
-#     # for item in combinations(avail,2):
-#     #     comb.append(item)
-
-#     # print 'all ', len(comb), ' combinations.'
-
-#     # choice = random.sample(comb, len(comb)/500)
-#     # print 'select ', len(choice), ' pairs.'
-
-#     return jsonify({'data':pairs})
 
 @app.route('/query-tgs')
 def query_tgs_info():
