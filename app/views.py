@@ -5,14 +5,13 @@ from flask import render_template,url_for,jsonify,request
 import pandas as pd
 import json
 
-from app.helper import EvilTransform
+# from app.helper import EvilTransform
 from test.test_asso import *
 import shared
-# from shared import read_tgs_info
 from analysis import load_od_data
 from dateutil.parser import parse
 
-cols = ['KKID','KKMC','CLOUD_ID','X','Y']
+# cols = ['KKID','KKMC','CLOUD_ID','X','Y']
 tgsinfo = shared.read_tgs_info()
 
 
