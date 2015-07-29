@@ -200,7 +200,7 @@
             return;
         }
 
-        $.getJSON("/request-od-data",{'datetime':timerange,'od':od},function(json) {
+        $.getJSON("/request-od-data",{'datetime':timerange,'od':od}, function(json) {
             // console.log(json.tgs);
 
             tgs = json.tgs;
@@ -261,10 +261,14 @@
             map.addOverlay(ol_heatmap);
             ol_heatmap.setDataSet({data:hdata, max:mcount+2});
             ol_heatmap.show();
-        });
 
-        // $('#heading').html(timerange+od);
-        // alert(od);
+            // set map style
+            var  mapStyle = {
+                features: ["road","building","water","land"],
+                style : "light"  //
+            };
+            map.setMapStyle(mapStyle);
+        });
     });
 
     $("#od-select input").on("change", function () {

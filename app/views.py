@@ -59,10 +59,15 @@ def od_charts():
 
     return render_template("od.html")
 
-def _calc_dtime_index(dtime):
+def _calc_dtime_index(date_time):
     granula = 10*60
 
-    dtime = parse(dtime)   # drop seconds
+    try:
+        dtime = parse(date_time)   # drop seconds
+    except:
+        print 'datetime error: %s' % (date_time)
+        return 0
+
     dtime = dtime.replace(second=0,microsecond=0)
 
     begtime = dtime.replace(hour=0,minute=0)
