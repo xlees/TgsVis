@@ -11,7 +11,7 @@ import shared
 from analysis import load_od_data
 from dateutil.parser import parse
 
-# cols = ['KKID','KKMC','CLOUD_ID','X','Y']
+cols = ['KKID','KKMC','CLOUD_ID','X','Y']
 tgsinfo = shared.read_tgs_info()
 
 
@@ -28,11 +28,19 @@ def gps_to_bd():
 
 @app.route('/request-tgs-info')
 def response_tgs_info():
-    print tgsinfo['10588']
+    # print tgsinfo['10588']
+
+    locs = [(elem[1]['lng'], elem[1]['lat']) for elem in tgsinfo.items()]
+    # print locs[0]
+
+    # center = (0.0, 0.0)
+    center = reduce(lambda x,y: (x[0]+y[0], x[1]+y[1]), locs)
+    c = map(lambda x: x/len(locs), center)
 
     result = {
         'status':0,
         'data': tgsinfo,
+        'center': c,
     }
 
     return json.dumps(result,ensure_ascii=False)

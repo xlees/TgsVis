@@ -1,6 +1,23 @@
 
 <div class="container-fluid">
 
+    <div class="row" style="margin-bottom: 50px;">
+        <div class="col-md-3"><strong>卡口</strong></div>
+
+        <div class="col-md-9">
+            <div id="tgs-select" class="btn-group" data-toggle="buttons">
+                <label class="btn btn-default">
+                    <input type="radio" name="options" id="tgs-all" value="tgs-all">全部
+                </label>
+                <label class="btn btn-default">
+                    <input type="radio" name="options" id="tgs-avail" value="tgs-avail">可用
+                </label>
+                <label class="btn btn-default">
+                    <input type="radio" name="options" id="tgs-unavail" value="tgs-unavail">无效
+                </label>
+            </div>
+        </div>
+    </div>
     <!-- <form role="form"> -->
         <div class="form-group">
             <div id="od-select" class="btn-group" data-toggle="buttons">
@@ -91,14 +108,6 @@
                  infowin.setContent(tgs['kkid']+", "+tgs['kkmc']);
                  map.openInfoWindow(infowin,this.getPosition());
             });
-
-            // var p = new BMap.Point(tgsinfo[param.name]['lng'], tgsinfo[param.name]['lat']);
-            // $.getJSON('/gps-to-bd',{'lng':tgs['lng'], 'lat':tgs['lat']}, function(json) {
-
-            //     // console.log('gps conversion status:'+json.status);
-
-
-            // });
         }
         else {
 
@@ -248,8 +257,8 @@
                     mcount = count[i];
             }
 
-            map.panTo(new BMap.Point(hdata[0]['lng'],hdata[0]['lat']), {noAnimation:false});
-            map.setZoom(12);
+            // map.panTo(new BMap.Point(hdata[0]['lng'],hdata[0]['lat']), {noAnimation:false});
+            // map.setZoom(12);
 
             if (typeof(ol_heatmap) != "undefined")
                 map.removeOverlay(ol_heatmap);
@@ -274,6 +283,223 @@
     $("#od-select input").on("change", function () {
         od = $(this).val();
         // console.log(od);
+    });
+
+    $("#tgs-select input").on("change", function () {
+        var sel = $(this).val();
+
+        // map.centerAndZoom(new BMap.Point(tgsinfo['1414']['lng'], tgsinfo['1414']['lat']), 12);
+
+        if (typeof(tgs_markers) == "undefined") {
+
+            tgs_markers = [];
+            for (var e in tgsinfo) {
+
+                var icon_path;
+                if (tgsinfo[e].avail)
+                    icon_path = "{{ url_for('static', filename='m1.png') }}";
+                else
+                    icon_path = "{{ url_for('static', filename='m7.png') }}";
+
+                var icon = new BMap.Icon(icon_path,
+                                     new BMap.Size(18, 18));
+                var _marker = new BMap.Marker(new BMap.Point(tgsinfo[e]['lng'],tgsinfo[e]['lat']),
+                                            {icon: icon});
+
+                var info = [];
+                info.push("<b>卡点编号</b>："+tgsinfo[e]['kkid']);
+                info.push("<b>卡点名称</b>："+tgsinfo[e]['kkmc']);
+                info.push("<b>云编号</b>："+tgsinfo[e]['cid']);
+
+                var _info = info.join("<br/>");
+                tgs_markers.push({
+                    marker: _marker,
+                    info: _info,
+                    avail: tgsinfo[e].avail,
+                });
+
+            }
+        }
+
+        if (sel == "tgs-all") {
+
+            if (n_markers == tgs_markers.length)
+                return;
+            else if (n_markers == n_avail) {
+
+                for (var i=0; i<tgs_markers.length; i++) {
+
+                    if (tgs_markers[i].avail)
+                        continue;
+
+                    map.addOverlay(tgs_markers[i].marker);
+                    // 闭包
+                    (function() {
+                        var indx = i;
+
+                        tgs_markers[i].marker.addEventListener("click", function(e) {
+                            // console.log(type,target);
+
+                            infowin.setContent(tgs_markers[indx].info);
+                            map.openInfoWindow(infowin, e.point);
+                        });
+                    }) ();
+                }
+            }
+            else if (n_markers == n_unavail) {
+                for (var i=0; i<tgs_markers.length; i++) {
+
+                    if (!tgs_markers[i].avail)
+                        continue;
+
+                    map.addOverlay(tgs_markers[i].marker);
+                    // 闭包
+                    (function() {
+                        var indx = i;
+
+                        tgs_markers[i].marker.addEventListener("click", function(e) {
+                            // console.log(type,target);
+
+                            infowin.setContent(tgs_markers[indx].info);
+                            map.openInfoWindow(infowin, e.point);
+                        });
+                    }) ();
+                }
+            }
+            else {
+                // add all marker
+                for (var i=0; i<tgs_markers.length; i++) {
+                    // console.log(tgs_markers[i].info);
+                    //
+                    map.addOverlay(tgs_markers[i].marker);
+                    // 闭包
+                    (function() {
+                        var indx = i;
+
+                        tgs_markers[i].marker.addEventListener("click", function(e) {
+                            // console.log(type,target);
+
+                            infowin.setContent(tgs_markers[indx].info);
+                            map.openInfoWindow(infowin, e.point);
+                        });
+                    }) ();
+                }
+            }
+
+            n_markers = tgs_markers.length;
+        }
+        else if (sel == "tgs-avail") {
+
+            if (n_markers == tgs_markers.length) {
+
+                for (var i=0; i<tgs_markers.length; i++) {
+                    if (!tgs_markers[i].avail)
+                        map.removeOverlay(tgs_markers[i].marker);
+                }
+            }
+            else if (n_markers == n_unavail) {
+
+                for (var i=0; i<tgs_markers.length; i++) {
+
+                    if (!tgs_markers[i].avail) {
+                        map.removeOverlay(tgs_markers[i].marker);
+                        continue;
+                    }
+
+                    map.addOverlay(tgs_markers[i].marker);
+                    // 闭包
+                    (function() {
+                        var indx = i;
+
+                        tgs_markers[i].marker.addEventListener("click", function(e) {
+                            // console.log(type,target);
+
+                            infowin.setContent(tgs_markers[indx].info);
+                            map.openInfoWindow(infowin, e.point);
+                        });
+                    }) ();
+                }
+            }
+            else if (n_markers == 0) {
+
+                for (var i=0; i<tgs_markers.length; i++) {
+
+                    if (!tgs_markers[i].avail)
+                        continue;
+
+                    map.addOverlay(tgs_markers[i].marker);
+                    // 闭包
+                    (function() {
+                        var indx = i;
+
+                        tgs_markers[i].marker.addEventListener("click", function(e) {
+                            // console.log(type,target);
+
+                            infowin.setContent(tgs_markers[indx].info);
+                            map.openInfoWindow(infowin, e.point);
+                        });
+                    }) ();
+                }
+            }
+
+            n_markers = n_avail;
+        }
+        else if (sel == "tgs-unavail") {
+            if (n_markers == tgs_markers.length) {
+
+                for (var i=0; i<tgs_markers.length; i++) {
+                    if (tgs_markers[i].avail)
+                        map.removeOverlay(tgs_markers[i].marker);
+                }
+            }
+            else if (n_markers == n_avail) {
+
+                for (var i=0; i<tgs_markers.length; i++) {
+
+                    if (tgs_markers[i].avail) {
+                        map.removeOverlay(tgs_markers[i].marker);
+                        continue;
+                    }
+
+                    map.addOverlay(tgs_markers[i].marker);
+                    // 闭包
+                    (function() {
+                        var indx = i;
+
+                        tgs_markers[i].marker.addEventListener("click", function(e) {
+                            // console.log(type,target);
+
+                            infowin.setContent(tgs_markers[indx].info);
+                            map.openInfoWindow(infowin, e.point);
+                        });
+                    }) ();
+                }
+            }
+            else if (n_markers == 0) {
+
+                for (var i=0; i<tgs_markers.length; i++) {
+
+                    if (tgs_markers[i].avail)
+                        continue;
+
+                    map.addOverlay(tgs_markers[i].marker);
+                    // 闭包
+                    (function() {
+                        var indx = i;
+
+                        tgs_markers[i].marker.addEventListener("click", function(e) {
+                            // console.log(type,target);
+
+                            infowin.setContent(tgs_markers[indx].info);
+                            map.openInfoWindow(infowin, e.point);
+                        });
+                    }) ();
+                }
+            }
+
+            n_markers = n_unavail;
+        }
+
     });
 
     // $('.od').button('toggle');

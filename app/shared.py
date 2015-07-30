@@ -123,8 +123,14 @@ def read_tgs_info():
     read tgs information.
     """
     cols = ['KKID','KKMC','CLOUD_ID','X','Y']
-    cache_file = os.path.join(root_dir,"data","tgs_info_bd.txt")
 
+    # read avail tgs
+    avail_tgs = set()
+    with open(os.path.join(root_dir, "data", "avail_tgs.txt"), "r") as f:
+        for line in f.readlines():
+            avail_tgs.add(line[:-1])
+
+    cache_file = os.path.join(root_dir,"data","tgs_info_bd.txt")
     ret = {}
     if os.path.exists(cache_file):
         with open(cache_file,"r") as f:
@@ -134,8 +140,9 @@ def read_tgs_info():
                     'cid': tmp[0],
                     'kkid': tmp[1].decode('gbk'),
                     'kkmc': tmp[2].decode('gbk'),
-                    'lng': tmp[3],
-                    'lat': tmp[4],
+                    'lng': float(tmp[3]),
+                    'lat': float(tmp[4]),
+                    'avail': True if tmp[0] in avail_tgs else False,
                 }
                 ret[tmp[0]] = info
 
@@ -157,13 +164,8 @@ def read_tgs_info():
                 'lng': loc['x'],
                 'lat': loc['y'],
                 'cid': res[i][2],
+                'avail': True if res[i][2] in avail_tgs else False,
             }
-
-            # loc = (info['lng'], info['lat'])
-            # loc_bd = gps2baidu(loc)
-
-            # info['lng'] = loc_bd[0]
-            # info['lat'] = loc_bd[1]
 
             if ret.has_key(res[i][2]):
                 if not duplicated.has_key(res[i][2]):
@@ -198,6 +200,13 @@ def read_tgs_info():
                                                    info['lng'],
                                                    info['lat'])
                 f.write(line)
+
+    n_avail = 0
+    for cid,info in ret.iteritems():
+        if info['avail']:
+            n_avail += 1
+
+    print '%d available tgs.' % (n_avail)
 
     return ret
 
