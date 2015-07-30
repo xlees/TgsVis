@@ -201,13 +201,17 @@ def query_tgs_info():
             'status': -1,
             'msg': u'无卡口输入！',
         }
+        return jsonify(ret,ensure_ascii=False)
     else:
-        tgs_info = pd.read_csv('tgsinfo.csv')[cols]
-        res = tgs_info.apply(transform, axis=1).tolist()
+        if not tgsinfo.has_key(cid):
+            ret['status'] = 1
+            ret['msg'] = u'该卡口不存在！'
+            return jsonify(ret,ensure_ascii=False)
 
         # read adjcency
         p_main = re.compile("\d+,")
         p_indegree = re.compile("\d+-\d+")
+
         fname = "data/week_adj.txt"
         upstream = Counter()
         with open(fname,"r") as f:
@@ -226,23 +230,19 @@ def query_tgs_info():
                             continue
                         upstream[item[0]] = int(item[1])
 
-                    # break
+                    break
 
         # print 'upstream:', upstream
         u0 = upstream.most_common(10)
         u1 = [(item[0], float(item[1]-u0[-1][1]) / (u0[0][1]-u0[-1][1])) for item in u0]
         u2 = [item if item[1]>0.5 else (item[0], 0.1) for item in u1]
-        top10 = dict(u2)
+        top = dict(u2)
 
         print 'u1: ', u2
 
-        filtered = filter(lambda x: x[2]==cid, res)
-        if len(filtered) == 0:
-            ret['status'] = 1
-            ret['msg'] = u'该卡口不存在！'
-        else:
-            ret['status'] = 0
-            ret['data'] = {'main':filtered[0],'upstream':top10}
+        # filtered = filter(lambda x: x[2]==cid, res)
+        ret['status'] = 0
+        ret['data'] = {'main':cid, 'upstream':top}
 
     return jsonify(ret,ensure_ascii=False)
 

@@ -1,7 +1,13 @@
 
 <div class="container-fluid">
 
-    <div class="row" style="margin-bottom: 50px;">
+    <div class="row" style="margin-bottom: 35px;">
+        <div class="col-md-6 col-md-offset-3">
+            <button id="btn-clear" type="button" class="btn btn-info">清除地图</button>
+        </div>
+    </div>
+
+    <div class="row" style="margin-bottom: 35px;">
         <div class="col-md-3"><strong>卡口</strong></div>
 
         <div class="col-md-9">
@@ -18,6 +24,7 @@
             </div>
         </div>
     </div>
+
     <!-- <form role="form"> -->
         <div class="form-group">
             <div id="od-select" class="btn-group" data-toggle="buttons">
@@ -40,20 +47,31 @@
             <input type="text" id="endtime" class="form-control datetime-picker" placeholder="结束时间">
         </div> -->
 
-        <div class="row">
-            <div class="col-md-4">
-                <button id="btn-submit" type="submit" class="btn btn-primary">查询</button>
-            </div>
-
-            <div class="col-md-4">
-                <button id="btn-remove" type="submit" class="btn btn-danger">
-                    <span class="glyphicon glyphicon-chevron-up" aria-hidden="true"></span>
-                    隐藏统计图
-                </button>
-            </div>
+    <div class="row" style="margin-bottom: 35px;">
+        <div class="col-md-4">
+            <button id="btn-submit" type="submit" class="btn btn-primary">查询</button>
         </div>
 
+        <div class="col-md-4">
+            <button id="btn-remove" type="submit" class="btn btn-danger">
+                <span class="glyphicon glyphicon-chevron-up" aria-hidden="true"></span>
+                隐藏统计图
+            </button>
+        </div>
+    </div>
+
     <!-- </form> -->
+
+    <div class="row" style="margin-bottom: 35px;">
+        <div class="col-md-12 col-md-offset-0">
+            <div class="input-group">
+                <input id="input-numb" type="text" class="form-control" placeholder="输入车牌或卡口查询...">
+                <span class="input-group-btn">
+                    <button id="query-vehicle" class="btn btn-default" type="submit">GO</button>
+                </span>
+            </div><!-- /input-group -->
+        </div>
+    </div>
 
 </div>
 
@@ -243,7 +261,7 @@
                 ],
             draw_callback);
 
-            // draw hot
+            // draw heatmap
             var hdata = [];
             var mcount = 0;
             for (var i=0; i<tgs.length; i++) {
@@ -257,14 +275,14 @@
                     mcount = count[i];
             }
 
-            // map.panTo(new BMap.Point(hdata[0]['lng'],hdata[0]['lat']), {noAnimation:false});
-            // map.setZoom(12);
+            map.clearOverlays();
+            n_markers = 0;
 
-            if (typeof(ol_heatmap) != "undefined")
-                map.removeOverlay(ol_heatmap);
+            // if (typeof(ol_heatmap) != "undefined")
+            //     map.removeOverlay(ol_heatmap);
 
-            if (typeof(marker) != "undefined")
-                map.removeOverlay(marker);
+            // if (typeof(marker) != "undefined")
+            //     map.removeOverlay(marker);
 
             ol_heatmap = new BMapLib.HeatmapOverlay({"radius":24});
             map.addOverlay(ol_heatmap);
@@ -287,39 +305,6 @@
 
     $("#tgs-select input").on("change", function () {
         var sel = $(this).val();
-
-        // map.centerAndZoom(new BMap.Point(tgsinfo['1414']['lng'], tgsinfo['1414']['lat']), 12);
-
-        if (typeof(tgs_markers) == "undefined") {
-
-            tgs_markers = [];
-            for (var e in tgsinfo) {
-
-                var icon_path;
-                if (tgsinfo[e].avail)
-                    icon_path = "{{ url_for('static', filename='m1.png') }}";
-                else
-                    icon_path = "{{ url_for('static', filename='m7.png') }}";
-
-                var icon = new BMap.Icon(icon_path,
-                                     new BMap.Size(18, 18));
-                var _marker = new BMap.Marker(new BMap.Point(tgsinfo[e]['lng'],tgsinfo[e]['lat']),
-                                            {icon: icon});
-
-                var info = [];
-                info.push("<b>卡点编号</b>："+tgsinfo[e]['kkid']);
-                info.push("<b>卡点名称</b>："+tgsinfo[e]['kkmc']);
-                info.push("<b>云编号</b>："+tgsinfo[e]['cid']);
-
-                var _info = info.join("<br/>");
-                tgs_markers.push({
-                    marker: _marker,
-                    info: _info,
-                    avail: tgsinfo[e].avail,
-                });
-
-            }
-        }
 
         if (sel == "tgs-all") {
 
@@ -502,5 +487,119 @@
 
     });
 
-    // $('.od').button('toggle');
+    $('#query-vehicle').click(function() {
+
+        if (typeof(adj)!= "undefined" && adj.length>0) {
+            for (var i in adj) {
+                // console.log(i);
+                map.removeOverlay(adj[i]);
+            }
+        }
+
+        cont = $('#input-numb').val().trim();
+        if (cont == "") {
+            console.log("null input!");
+            return;
+        }
+
+        $.getJSON("/query-tgs",{"numb":cont}, function(json) {
+
+            if (json.status == 1) {
+
+                alert(json.msg);
+                // $('#query-vehicle').popover({
+                //     html: 'hello',
+                // });
+                // $('#query-vehicle').popover('toggle');
+            }
+            else if (json.status == 0) {
+                console.log(tgsinfo[json.data.main]);
+
+                var loc = new BMap.Point(tgsinfo[json.data.main]['lng'],
+                                         tgsinfo[json.data.main]['lat'])
+                map.panTo(loc);
+                // map.setZoom(16);
+
+                // var m_main = new BMap.Marker(loc, {
+                //     icon: new BMap.Icon("{{ url_for('static', filename='query.png') }}",
+                //                         new BMap.Size(24,24)),
+                // });
+
+                (function () {
+
+                    var indx;
+                    for (var i in tgs_markers) {
+                        if (tgs_markers[i].cid == json.data.main) {
+                            indx = i;
+                        }
+                    }
+
+                    var marker = jQuery.extend(true,{},tgs_markers[indx].marker);
+                    marker.setIcon(new BMap.Icon("{{ url_for('static', filename='query.png') }}",
+                                        new BMap.Size(36,36)));
+                    marker.setZIndex(999);
+
+                    marker.addEventListener("click", function(e) {
+
+                        infowin.setContent(tgs_markers[indx].info);
+                        map.openInfoWindow(infowin, e.point);
+                    });
+
+                    map.addOverlay(marker);
+                    adj.push(marker);
+                }) ();
+
+                // plot upstream tgs
+                for (var cid in json.data.upstream) {
+                    // console.log("cid=", cid);
+
+                    var cpoint = new BMap.Point(tgsinfo[cid]['lng'], tgsinfo[cid]['lat']);
+
+                    (function() {
+                        var indx;
+                        for (var i in tgs_markers) {
+                            if (tgs_markers[i].cid == cid) {
+                                indx = i;
+                            }
+                        }
+
+                        var marker = jQuery.extend(true,{},tgs_markers[indx].marker);
+                        marker.setIcon(new BMap.Icon("{{ url_for('static', filename='upstream.png') }}",
+                                            new BMap.Size(28,28)));
+                        marker.setZIndex(999);
+
+                        marker.addEventListener("click", function(e) {
+
+                            infowin.setContent(tgs_markers[indx].info);
+                            map.openInfoWindow(infowin, e.point);
+                        });
+
+                        map.addOverlay(marker);
+                        adj.push(marker);
+                    }) ();
+
+                    // draw line
+                    var start = cpoint;
+                    var end = loc;
+                    var polyline = new BMap.Polyline([start,end], {
+                        strokeColor: "black",
+                        strokeOpacity: json.data.upstream[cid],
+                        strokeWeight: 5.5,
+                        strokeStyle: "solid",
+                    });
+                    map.addOverlay(polyline);
+                    adj.push(polyline);
+                }
+
+            }
+            else {
+                console.log("null input!");
+            }
+        });
+    });
+
+    $('#btn-clear').click(function() {
+        map.clearOverlays();
+        n_markers = 0;
+    });
 </script>

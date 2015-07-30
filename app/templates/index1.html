@@ -48,6 +48,7 @@
 		var n_avail;
 		var n_unavail;
 		var n_markers = 0;
+		var adj = [];
 
 		var ak = "Dafb6wSsEnWv8QnT3TOcAfk7";
 
@@ -90,6 +91,35 @@
 			}
 
 			map.centerAndZoom(new BMap.Point(json.center[0],json.center[1]), 13);
+
+			tgs_markers = [];
+            for (var e in tgsinfo) {
+
+                var icon_path;
+                if (tgsinfo[e].avail)
+                    icon_path = "{{ url_for('static', filename='m1.png') }}";
+                else
+                    icon_path = "{{ url_for('static', filename='m7.png') }}";
+
+                var icon = new BMap.Icon(icon_path,
+                                     new BMap.Size(18, 18));
+                var _marker = new BMap.Marker(new BMap.Point(tgsinfo[e]['lng'],tgsinfo[e]['lat']),
+                                            {icon: icon});
+
+                var info = [];
+                info.push("<b>卡点编号</b>："+tgsinfo[e]['kkid']);
+                info.push("<b>卡点名称</b>："+tgsinfo[e]['kkmc']);
+                info.push("<b>云编号</b>："+tgsinfo[e]['cid']);
+
+                var _info = info.join("<br/>");
+                tgs_markers.push({
+                    cid: e,
+                    marker: _marker,
+                    info: _info,
+                    avail: tgsinfo[e].avail,
+                });
+
+            }
 		});
 
 
