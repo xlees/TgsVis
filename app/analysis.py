@@ -19,9 +19,10 @@ from test.test_asso import *
 from app.helper import EvilTransform
 import math
 from shared import *
+from datetime import datetime
 import hbase.ttypes as htt
 
-host, port = "10.2.25.110", 9090
+host, port = "10.2.25.115", 9090
 
 
 def load_od_data(index, odtype="o"):
@@ -73,7 +74,7 @@ def load_edge_info():
     return indegree
 
 def query_traj(stime,etime, numb):
-    tbl = 'tr_plate61'
+    tbl = 'tr_plate_jun'
 
     (client,trpt) = get_thrift_client(host,port)
 
@@ -219,17 +220,6 @@ def transform(row):
             loc[1])
 
 
-# def read_tgs_info(fname):
-#     cols = ['KKID','KKMC','CLOUD_ID','X','Y']
-
-#     tgs_info = pd.read_csv(fname)[cols]
-#     res = tgs_info.apply(transform, axis=1).tolist()
-
-#     ret = {}
-#     for item in res:
-#         ret[item[2]] = (item[3],item[4])
-
-#     return ret
 
 def filter_pairs():
     # adj = read_adj(os.path.join(root_dir,"adj.txt"))
@@ -395,7 +385,7 @@ def stat_first_tgs(stime,etime):
     print 'finished.'
 
 def query_vehicle_trajetory(numb,ptype,stime,etime):
-    tbl = "tr_plate61"
+    tbl = "tr_plate_jun"
 
     begtime = long(time.mktime(stime.timetuple())*1000)
     endtime = long(time.mktime(etime.timetuple())*1000)
@@ -435,15 +425,53 @@ def query_vehicle_trajetory(numb,ptype,stime,etime):
 
     return traj
 
+def stat_tgs_volume(cid, stime,etime):
+    tbl = "tr_bay61"
+
+    b_cid = byte_cid(cid)
+    begtime = long(time.mktime(stime.timetuple())*1000)
+    endtime = long(time.mktime(etime.timetuple())*1000)
+
+    (client,trpt) = get_thrift_client(host,port)
+
+    trpt.open()
+
+    scan = htt.TScan()
+    scan.columns = ['cf:']
+    scan.caching = 110
+    # scan.filterString = "RowFilter(=, 'substring:%s') AND KeyOnlyFilter()" % (numb)
+    # scan.filterString = "KeyOnlyFilter()"
+    scan.startRow = struct.pack(">2sQ", b_cid, begtime)
+    scan.stopRow = struct.pack(">2sQ", b_cid, endtime)
+
+    scanner = client.scannerOpenWithScan(tbl,scan,None)
+
+    n_records = 0
+    while 1:
+        dataset = client.scannerGetList(scanner,buf_max_size)
+        n_records += len(dataset)
+
+        if len(dataset) < buf_max_size:
+            break
+
+        del dataset[:]
+
+    trpt.close()
+
+    return n_records
 
 if __name__ == '__main__':
     # filter_pairs()
 
     begtime = datetime(2015,6,1,0,0,0)
-    endtime = datetime(2015,6,1,12,0,0)
+    endtime = datetime(2015,6,2,0,0,0)
 
-    result = load_od_data(42,"d")
-    print result[:5]
+    cid = 254
+    n = stat_tgs_volume(cid,begtime,endtime)
+    print '%d: %d records.' % (cid,n)
+
+    # result = load_od_data(42,"d")
+    # print result[:5]
 
     # stat_first_tgs(begtime,endtime)
 
