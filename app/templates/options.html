@@ -104,7 +104,15 @@
     function eHandler(param) {
 
         if (param.type == "click") {
+            cid = param.name;
             tgs = tgsinfo[param.name];
+
+            var indx;
+            for (var i in tgs_markers) {
+                if (tgs_markers[i].cid == cid) {
+                    indx = i;
+                }
+            }
 
             console.log(param.name+": "+param.value+" is "+tgs['kkmc']);
 
@@ -114,7 +122,7 @@
             if (typeof(marker) != "undefined")
                 map.removeOverlay(marker);
 
-            infowin.setContent(tgs['kkid']+", "+tgs['kkmc']);
+            infowin.setContent(tgs_markers[indx].info);
             map.openInfoWindow(infowin, p0);
 
             marker = new BMap.Marker(p0, {
@@ -123,7 +131,7 @@
             map.addOverlay(marker);                     // 将标注添加到地图中
             marker.addEventListener("click", function(){
 
-                 infowin.setContent(tgs['kkid']+", "+tgs['kkmc']);
+                 infowin.setContent(tgs_markers[indx].info);
                  map.openInfoWindow(infowin,this.getPosition());
             });
         }
@@ -169,31 +177,33 @@
             // calculable : true,
             yAxis : [
                 {
+                    name: '车次',
                     type : 'value',
-                    boundaryGap : [0, 0.01]
+                    boundaryGap : [0, 0.01],
                     // axisLabel : {
-                    //     formatter: '{value} 辆'
+                    //     formatter: '{value} 车次'
                     // }
                 }
             ],
             xAxis : [
                 {
+                    name: '卡口云编号',
                     type : 'category',
                     data : tgs,
-                    // axisLabel: {
-                    //     rotate: 45
-                    // }
+                    axisLabel: {
+                        rotate: 0
+                    }
                 }
             ],
             series : [
                 {
-                    // name: grpName[0],
+                    name: "出行车次",
                     type: 'bar',
                     data: count,
                     markPoint : {
                         data : [
-                            {type : 'min', name : '最低出行数'},
-                            {type : 'max', name : '最高出行数'}
+                            {type : 'min', name : '最低出行车次'},
+                            {type : 'max', name : '最高出行车次'}
                         ],
                         effect: {
                             color: 'red'
@@ -593,6 +603,7 @@
 
                 console.log(tgsinfo[json.data.main]);
 
+                map.clearOverlays();
                 draw_adj(json.data.main, json.data.upstream);
 
             }
