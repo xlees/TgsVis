@@ -206,6 +206,80 @@
         chart.setOption(options);
     };
 
+    var draw_adj = function(main,up_down_stream) {
+
+        var loc = new BMap.Point(tgsinfo[main]['lng'],
+                                 tgsinfo[main]['lat'])
+        map.panTo(loc);
+
+        (function () {
+
+            var indx;
+            for (var i in tgs_markers) {
+                if (tgs_markers[i].cid == main) {
+                    indx = i;
+                }
+            }
+
+            var marker = jQuery.extend(true,{},tgs_markers[indx].marker);
+            marker.setIcon(new BMap.Icon("{{ url_for('static', filename='query.png') }}",
+                                new BMap.Size(36,36)));
+            marker.setZIndex(999);
+
+            marker.addEventListener("click", function(e) {
+
+                infowin.setContent(tgs_markers[indx].info);
+                map.openInfoWindow(infowin, e.point);
+            });
+
+            map.addOverlay(marker);
+            adj.push(marker);
+        }) ();
+
+        // plot upstream tgs
+        for (var cid in up_down_stream) {
+            // console.log("cid=", cid);
+
+            var cpoint = new BMap.Point(tgsinfo[cid]['lng'], tgsinfo[cid]['lat']);
+
+            (function() {
+                var indx;
+                for (var i in tgs_markers) {
+                    if (tgs_markers[i].cid == cid) {
+                        indx = i;
+                    }
+                }
+
+                var marker = jQuery.extend(true,{},tgs_markers[indx].marker);
+                marker.setIcon(new BMap.Icon("{{ url_for('static', filename='upstream.png') }}",
+                                    new BMap.Size(28,28)));
+                marker.setZIndex(999);
+
+                marker.addEventListener("click", function(e) {
+
+                    infowin.setContent(tgs_markers[indx].info);
+                    map.openInfoWindow(infowin, e.point);
+                });
+
+                map.addOverlay(marker);
+                adj.push(marker);
+            }) ();
+
+            // draw line
+            var start = cpoint;
+            var end = loc;
+            var polyline = new BMap.Polyline([start,end], {
+                strokeColor: "#EA0000",
+                strokeOpacity: up_down_stream[cid],
+                strokeWeight: 5.5,
+                strokeStyle: "solid",
+            });
+
+            map.addOverlay(polyline);
+            adj.push(polyline);
+        }
+    };
+
     $(document).ready(function() {
         $(".datetime-picker").datetimepicker({
             // showOn: "button",
@@ -502,7 +576,7 @@
             return;
         }
 
-        $.getJSON("/query-tgs",{"numb":cont}, function(json) {
+        $.getJSON("/query-tgs",{"numb":cont,"dtype":0}, function(json) {
 
             if (json.status == 1) {
 
@@ -515,92 +589,99 @@
             else if (json.status == 0) {
                 console.log(tgsinfo[json.data.main]);
 
-                var loc = new BMap.Point(tgsinfo[json.data.main]['lng'],
-                                         tgsinfo[json.data.main]['lat'])
-                map.panTo(loc);
-                // map.setZoom(16);
+                draw_adj(json.data.main, json.data.upstream);
 
-                // var m_main = new BMap.Marker(loc, {
-                //     icon: new BMap.Icon("{{ url_for('static', filename='query.png') }}",
-                //                         new BMap.Size(24,24)),
-                // });
+                // var loc = new BMap.Point(tgsinfo[json.data.main]['lng'],
+                //                          tgsinfo[json.data.main]['lat'])
+                // map.panTo(loc);
+                // // map.setZoom(16);
 
-                (function () {
+                // // var m_main = new BMap.Marker(loc, {
+                // //     icon: new BMap.Icon("{{ url_for('static', filename='query.png') }}",
+                // //                         new BMap.Size(24,24)),
+                // // });
 
-                    var indx;
-                    for (var i in tgs_markers) {
-                        if (tgs_markers[i].cid == json.data.main) {
-                            indx = i;
-                        }
-                    }
+                // (function () {
 
-                    var marker = jQuery.extend(true,{},tgs_markers[indx].marker);
-                    marker.setIcon(new BMap.Icon("{{ url_for('static', filename='query.png') }}",
-                                        new BMap.Size(36,36)));
-                    marker.setZIndex(999);
+                //     var indx;
+                //     for (var i in tgs_markers) {
+                //         if (tgs_markers[i].cid == json.data.main) {
+                //             indx = i;
+                //         }
+                //     }
 
-                    marker.addEventListener("click", function(e) {
+                //     var marker = jQuery.extend(true,{},tgs_markers[indx].marker);
+                //     marker.setIcon(new BMap.Icon("{{ url_for('static', filename='query.png') }}",
+                //                         new BMap.Size(36,36)));
+                //     marker.setZIndex(999);
 
-                        infowin.setContent(tgs_markers[indx].info);
-                        map.openInfoWindow(infowin, e.point);
-                    });
+                //     marker.addEventListener("click", function(e) {
 
-                    map.addOverlay(marker);
-                    adj.push(marker);
-                }) ();
+                //         infowin.setContent(tgs_markers[indx].info);
+                //         map.openInfoWindow(infowin, e.point);
+                //     });
 
-                // plot upstream tgs
-                for (var cid in json.data.upstream) {
-                    // console.log("cid=", cid);
+                //     map.addOverlay(marker);
+                //     adj.push(marker);
+                // }) ();
 
-                    var cpoint = new BMap.Point(tgsinfo[cid]['lng'], tgsinfo[cid]['lat']);
+                // // plot upstream tgs
+                // for (var cid in json.data.upstream) {
+                //     // console.log("cid=", cid);
 
-                    (function() {
-                        var indx;
-                        for (var i in tgs_markers) {
-                            if (tgs_markers[i].cid == cid) {
-                                indx = i;
-                            }
-                        }
+                //     var cpoint = new BMap.Point(tgsinfo[cid]['lng'], tgsinfo[cid]['lat']);
 
-                        var marker = jQuery.extend(true,{},tgs_markers[indx].marker);
-                        marker.setIcon(new BMap.Icon("{{ url_for('static', filename='upstream.png') }}",
-                                            new BMap.Size(28,28)));
-                        marker.setZIndex(999);
+                //     (function() {
+                //         var indx;
+                //         for (var i in tgs_markers) {
+                //             if (tgs_markers[i].cid == cid) {
+                //                 indx = i;
+                //             }
+                //         }
 
-                        marker.addEventListener("click", function(e) {
+                //         var marker = jQuery.extend(true,{},tgs_markers[indx].marker);
+                //         marker.setIcon(new BMap.Icon("{{ url_for('static', filename='upstream.png') }}",
+                //                             new BMap.Size(28,28)));
+                //         marker.setZIndex(999);
 
-                            infowin.setContent(tgs_markers[indx].info);
-                            map.openInfoWindow(infowin, e.point);
-                        });
+                //         marker.addEventListener("click", function(e) {
 
-                        map.addOverlay(marker);
-                        adj.push(marker);
-                    }) ();
+                //             infowin.setContent(tgs_markers[indx].info);
+                //             map.openInfoWindow(infowin, e.point);
+                //         });
 
-                    // draw line
-                    var start = cpoint;
-                    var end = loc;
-                    var polyline = new BMap.Polyline([start,end], {
-                        strokeColor: "black",
-                        strokeOpacity: json.data.upstream[cid],
-                        strokeWeight: 5.5,
-                        strokeStyle: "solid",
-                    });
-                    map.addOverlay(polyline);
-                    adj.push(polyline);
-                }
+                //         map.addOverlay(marker);
+                //         adj.push(marker);
+                //     }) ();
+
+                //     // draw line
+                //     var start = cpoint;
+                //     var end = loc;
+                //     var polyline = new BMap.Polyline([start,end], {
+                //         strokeColor: "black",
+                //         strokeOpacity: json.data.upstream[cid],
+                //         strokeWeight: 5.5,
+                //         strokeStyle: "solid",
+                //     });
+                //     map.addOverlay(polyline);
+                //     adj.push(polyline);
+                // }
 
             }
             else {
                 console.log("null input!");
             }
+
+            map.addControl(ctrl);
         });
     });
 
     $('#btn-clear').click(function() {
+
         map.clearOverlays();
         n_markers = 0;
         map.setMapStyle({style:"normal"});
+
+        map.removeControl(ctrl);
     });
 </script>

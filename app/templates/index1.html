@@ -65,7 +65,7 @@
 		$('#row1').css("height", "0%");
 		$('#row2').css("height", "100%");
 
-		map = new BMap.Map("container-map");
+		map = new BMap.Map("container-map", {enableMapClick:false});
 		// map.setCurrentCity("beijing");
 		// map.setZoom(13);
 		// var point = new BMap.Point(116.504, 39.915);  // 创建点坐标
@@ -144,5 +144,6 @@
 		// }, 3000);
 	</script>
 
+    <script src="{{ url_for('static', filename='eControl.js') }}"></script>
 </body>
 </html>

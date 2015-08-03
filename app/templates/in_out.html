@@ -1,0 +1,36 @@
+
+
+<div id="degree-select" class="btn-group" data-toggle="buttons">
+    <label class="btn btn-default active">
+        <input type="radio" name="options" id="indegree" value="indegree">上游
+    </label>
+    <label class="btn btn-default">
+        <input type="radio" name="options" id="outdegree" value="outdegree">下游
+    </label>
+</div>
+
+<script>
+    $("#degree-select input").on("change", function () {
+        cont = $('#input-numb').val().trim();
+        var sel = $(this).val();
+
+        if (cont == "") {
+            console.log("null input!");
+            return;
+        }
+
+        map.clearOverlays();
+
+        if (sel == "indegree") {
+
+            $.getJSON("/query-tgs",{"numb":cont,"dtype":0}, function(json) {
+                draw_adj(json.data.main, json.data.upstream);
+            });
+        }
+        else {
+            $.getJSON("/query-tgs",{"numb":cont,"dtype":1}, function(json) {
+                draw_adj(json.data.main, json.data.upstream);
+            });
+        }
+    });
+</script>

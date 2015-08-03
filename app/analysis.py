@@ -15,15 +15,53 @@ import numpy as np
 
 import multiprocessing as mp
 import random
-from test.test_asso import *
-from app.helper import EvilTransform
+# from app.helper import EvilTransform
 import math
-from shared import *
+import shared as shd
 from datetime import datetime
 import hbase.ttypes as htt
+import re
 
 host, port = "10.2.25.115", 9090
 
+
+def load_adj_info(indegree=True):
+    """
+    0--indegree
+    1--outdegree
+    return adjcency list.
+    """
+    p_main = re.compile("\d+,")
+    p_degree = re.compile("\d+-\d+")
+
+    if indegree:
+        fname = os.path.join(root_dir,"data","adj_indegree.txt")
+    else:
+        fname = os.path.join(root_dir,"data","adj_outdegree.txt")
+
+    adj = {}
+    with open(fname,"r") as f:
+        for line in f.readlines():
+            try:
+                main = p_main.search(line).group()[:-1]
+            except AttributeError,e:
+                print e.args[0], ":", line
+                continue
+
+            adj[main] = []
+
+            degree = p_degree.findall(line)
+            for d in degree:
+                item = d.split("-")
+
+                if item[0]=='0' or item[0]==main:
+                    continue
+
+                adj[main].append((item[0], int(item[1])))
+
+            # adj[main].sort(key=lambda x: x[1], reverse=True)
+
+    return adj
 
 def load_od_data(index, odtype="o"):
     if not odtype in ["o","d"]:
@@ -49,29 +87,46 @@ def load_od_data(index, odtype="o"):
 
     return result
 
-def load_edge_info():
-    fname = os.path.join(root_dir,"data","adj_0601.txt")
+def load_edge_info(indegree=True):
+    """
+    0 -- indegree
+    1 -- outdegree
+    return adjcency list according to edges list.
+    """
+    fname = os.path.join(root_dir,"data","adj.txt")
 
-    indegree = {}
+    degree = {}
     with open(fname,"r") as f:
-        for line in f.readlines():
-            tmp = line[:-1].split(",")
+        if indegree:
+            for line in f.readlines():
+                tmp = line[:-1].split(",")
 
-            start = tmp[0]
-            end = tmp[1]
-            assoc = float(tmp[2])
-            # edge = (start,end)
+                start = tmp[0]
+                end = tmp[1]
+                assoc = float(tmp[2])
 
-            if not indegree.has_key(end):
-                indegree[end] = [(start,assoc)]
-            else:
-                indegree[end].append((start,assoc))
+                if not degree.has_key(end):
+                    degree[end] = [(start,assoc)]
+                else:
+                    degree[end].append((start,assoc))
+        else:
+            for line in f.readlines():
+                tmp = line[:-1].split(",")
+
+                start = tmp[0]
+                end = tmp[1]
+                assoc = float(tmp[2])
+
+                if not degree.has_key(start):
+                    degree[start] = [(end,assoc)]
+                else:
+                    degree[start].append((end,assoc))
 
     # sort
-    for cid in indegree.keys():
-        indegree[cid].sort(key=lambda x:x[1], reverse=True)
+    for cid in degree.keys():
+        degree[cid].sort(key=lambda x:x[1], reverse=True)
 
-    return indegree
+    return degree
 
 def query_traj(stime,etime, numb):
     tbl = 'tr_plate_jun'
@@ -218,8 +273,6 @@ def transform(row):
             repr(int(row['CLOUD_ID'])),
             loc[0],
             loc[1])
-
-
 
 def filter_pairs():
     # adj = read_adj(os.path.join(root_dir,"adj.txt"))
@@ -426,7 +479,7 @@ def query_vehicle_trajetory(numb,ptype,stime,etime):
     return traj
 
 def stat_tgs_volume(cid, stime,etime):
-    tbl = "tr_bay61"
+    tbl = "tr_bay_jun"
 
     b_cid = byte_cid(cid)
     begtime = long(time.mktime(stime.timetuple())*1000)
@@ -461,111 +514,17 @@ def stat_tgs_volume(cid, stime,etime):
     return n_records
 
 if __name__ == '__main__':
-    # filter_pairs()
+    begtime = datetime(2015,6,14,0,0,0)
+    endtime = datetime(2015,6,15,0,0,0)
 
-    begtime = datetime(2015,6,1,0,0,0)
-    endtime = datetime(2015,6,2,0,0,0)
+    adj = load_edge_info(False)
+    print adj['1']
 
-    cid = 254
-    n = stat_tgs_volume(cid,begtime,endtime)
-    print '%d: %d records.' % (cid,n)
+    # adj2 = load_adj_info(indegree=False)
+    # print adj2['589']
 
-    # result = load_od_data(42,"d")
-    # print result[:5]
-
-    # stat_first_tgs(begtime,endtime)
-
-    # numb = u"鄂AF8R13".encode('gbk')
-    # traj = query_vehicle_trajetory(numb,"02",begtime,endtime)
-    # for elem in traj:
-    #     print elem
-
-    # numb = u"鄂AF8R13".encode('gbk')
-    # query_traj(begtime,endtime,numb)
-
-    # s = time.time()
-
-    # ttime = read_traveltime(os.path.join(root_dir,"data","pair_all.txt"), n_line=-1)
-
-    # pool = mp.Pool(4)
-    # result = []
-    # for pair,val in ttime.iteritems():
-    #     result.append(pool.apply_async(calc_pair,(pair,val,)))
-
-    # print 'waiting for joining...'
-    # pool.close()
-    # pool.join()
-
-    # e = time.time()
-
-    # print 'filtering available edges...'
-
-    # avail = [item.get() for item in result if item.get() is not None]
-    # print '%d available edges in %.3f secs.' % (len(avail), (e-s))
-
-    # print 'writing to file...'
-    # tgsinfo = read_tgs_info(os.path.join(root_dir,"tgsinfo.csv"))
-
-    # # tgs_info = get_tgs_info(os.path.join(root_dir,"tgsinfo.csv"))
-    # volume = read_tgs_volume(os.path.join(root_dir,"data","volume.txt"))
-    # adj = read_adj(os.path.join(root_dir,"data","week_adj.txt"))
-    # link = calc_assoc(volume,adj)
-
-    # pairs = Counter()
-    # with open("avail_pairs.txt","w") as f:
-    #     for item in avail:
-    #         _from = repr(item[0][0])
-    #         _to = repr(item[0][1])
-    #         edge = (_from, _to)
-    #         # print 'from,to:',tgsinfo[_from],tgsinfo[_to]
-
-    #         dist = _calc_dist(tgsinfo[_from][0],tgsinfo[_from][1],
-    #                           tgsinfo[_to][0],tgsinfo[_to][1])
-    #         # line = "%s,%s: %.3f, %d, %d, %.6f\n"\
-    #                 # % (item[0][0],item[0][1],
-    #                    # (dist*3600)/item[1]*3.6, item[2], item[3], link[edge])
-    #         line = "%s,%s: %.4f, %.1f, %d, %d, %.6f\n"\
-    #                 % (item[0][0],item[0][1],
-    #                    dist, item[1], item[2], item[3], link[edge])
-
-    #         try:
-    #             pairs[edge] = (dist*1000)/item[1]*3.6
-    #         except ZeroDivisionError,e:
-    #             continue
-
-    #         f.write(line)
-    # print 'write to file finished.'
-
-    # with open("pairs.txt","w") as f:
-    #     for item in pairs.most_common():
-    #         line = "%s,%s: %.3f\n" % (item[0][0],item[0][1], item[1])
-    #         f.write(line)
-    # print "done."
-
-    # indx = random.sample(range(len(avail)), 5)
-    # for i in indx:
-    #     print avail[i]
+    # cid = 128
+    # n = stat_tgs_volume(cid,begtime,endtime)
+    # print '%d: %d records.' % (cid,n)
 
 
-    # host, port = "10.2.25.115", 9090
-    # host, port = "10.2.15.3", 9090
-
-    # (client,trpt) = get_client(host,port)
-
-    # trpt.open()
-
-    # tbls = client.getTableNames()
-    # print tbls
-
-    # # res = client.getStandardTime()
-    # # print 'res=',res
-
-    # # for i in xrange(1,8):
-    # #     print client.statVehicles("2015,06,0%d" % (i),"y-m-d-h-30m",True)
-
-    # # print client.statVehicles("2015,23","y-w-D",False)
-
-    # # loc = client.statLocation("2015,06,03|y-m-d-h-30m","中国,湖北|z-p-c","")
-    # # print loc
-
-    # trpt.close()

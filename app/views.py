@@ -1,18 +1,21 @@
 #coding: utf-8
 
 from app import app
-from flask import render_template,url_for,jsonify,request
+from flask import render_template,url_for,jsonify,request,render_template_string
 import pandas as pd
 import json
 
 # from app.helper import EvilTransform
-from test.test_asso import *
-import shared
-from analysis import load_od_data
+# from test.test_asso import *
+import shared as shd
+import analysis as aly
+# from analysis import load_od_data
 from dateutil.parser import parse
 
 cols = ['KKID','KKMC','CLOUD_ID','X','Y']
-tgsinfo = shared.read_tgs_info()
+tgsinfo = shd.read_tgs_info()
+adj_out = aly.load_adj_info(False)
+adj_in = aly.load_adj_info(True)
 
 
 @app.route('/gps-to-bd')
@@ -20,7 +23,7 @@ def gps_to_bd():
     lng = request.args.get('lng',type=float)
     lat = request.args.get('lat',type=float)
 
-    loc = shared.gps2baidu((lng,lat))
+    loc = shd.gps2baidu((lng,lat))
     if loc[0] is None and loc[1] is None:
         return jsonify({'status':1,'msg':'gps loc convert failure.'})
 
@@ -50,7 +53,7 @@ def query_od_data():
     index = _calc_dtime_index(request.args.get("datetime").strip())
     o_or_d = request.args.get("od").strip()
 
-    od = load_od_data(index,o_or_d)
+    od = aly.load_od_data(index,o_or_d)
 
     ret = {
         'tgs': [elem[0] for elem in od],
@@ -88,6 +91,12 @@ def calc_time_index():
     index = _calc_dtime_index(request.args.get("datetime"))
 
     return jsonify({'index':int(index)})
+
+@app.route('/load-map-control')
+def load_map_control():
+    res = render_template("in_out.html")
+
+    return jsonify({'data':res})
 
 @app.route('/get-o-data')
 def get_odata():
@@ -193,6 +202,7 @@ def get_adj_tgs():
 @app.route('/query-tgs')
 def query_tgs_info():
     cid = request.args.get('numb', '')
+    up_down = request.args.get('dtype',0,type=int)      # default upstream
 
     ret = {}
 
@@ -209,36 +219,41 @@ def query_tgs_info():
             return jsonify(ret,ensure_ascii=False)
 
         # read adjcency
-        p_main = re.compile("\d+,")
-        p_indegree = re.compile("\d+-\d+")
+        # p_main = re.compile("\d+,")
+        # p_indegree = re.compile("\d+-\d+")
 
-        fname = "data/week_adj.txt"
-        upstream = Counter()
-        with open(fname,"r") as f:
-            for line in f.readlines():
-                try:
-                    main = p_main.search(line).group()[:-1]
-                except AttributeError,e:
-                    print e.args[0], ":", line
-                    continue
+        # fname = "data/adj_indegree.txt"
+        # upstream = Counter()
+        # with open(fname,"r") as f:
+        #     for line in f.readlines():
+        #         try:
+        #             main = p_main.search(line).group()[:-1]
+        #         except AttributeError,e:
+        #             print e.args[0], ":", line
+        #             continue
 
-                if main == cid:
-                    indegree = p_indegree.findall(line)
-                    for d in indegree:
-                        item = d.split("-")
-                        if item[0]=='0' or item[0]==main:
-                            continue
-                        upstream[item[0]] = int(item[1])
+        #         if main == cid:
+        #             indegree = p_indegree.findall(line)
+        #             for d in indegree:
+        #                 item = d.split("-")
+        #                 if item[0]=='0' or item[0]==main:
+        #                     continue
+        #                 upstream[item[0]] = int(item[1])
 
-                    break
+        #             break
 
         # print 'upstream:', upstream
-        u0 = upstream.most_common(10)
+        # u0 = upstream.most_common()
+        if up_down == 0:            # indegree
+            u0 = adj_in[cid]
+        else:
+            u0 = adj_out[cid]
+
         u1 = [(item[0], float(item[1]-u0[-1][1]) / (u0[0][1]-u0[-1][1])) for item in u0]
-        u2 = [item if item[1]>0.5 else (item[0], 0.1) for item in u1]
+        u2 = [item for item in u1 if item[1]>0.1]
         top = dict(u2)
 
-        print 'u1: ', u2
+        print 'top edges: ', u2
 
         # filtered = filter(lambda x: x[2]==cid, res)
         ret['status'] = 0

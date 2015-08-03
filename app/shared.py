@@ -28,8 +28,7 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 
 from hbase import Hbase
-# from hbase.ttypes import TScan,ColumnDescriptor,AlreadyExists,Mutation,BatchMutation
-# import hbase.ttypes as htt
+
 
 buf_max_size = 5000
 ak = "Dafb6wSsEnWv8QnT3TOcAfk7"
