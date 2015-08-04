@@ -13,7 +13,7 @@ import analysis as aly
 from dateutil.parser import parse
 
 cols = ['KKID','KKMC','CLOUD_ID','X','Y']
-tgsinfo = shd.read_tgs_info()
+tgsinfo = shd.read_tgs_info()               # all tgs info
 adj_out = aly.load_adj_info(False)
 adj_in = aly.load_adj_info(True)
 
@@ -152,6 +152,8 @@ def add_numbers():
     return jsonify(result=a + b)
 
 def transform(row):
+    from app.helper import EvilTransform
+
     loc = EvilTransform.transform(row['Y'],row['X'])
 
     # print type(row['KKMC']), row['KKMC']
@@ -218,36 +220,17 @@ def query_tgs_info():
             ret['msg'] = u'该卡口不存在！'
             return jsonify(ret,ensure_ascii=False)
 
-        # read adjcency
-        # p_main = re.compile("\d+,")
-        # p_indegree = re.compile("\d+-\d+")
-
-        # fname = "data/adj_indegree.txt"
-        # upstream = Counter()
-        # with open(fname,"r") as f:
-        #     for line in f.readlines():
-        #         try:
-        #             main = p_main.search(line).group()[:-1]
-        #         except AttributeError,e:
-        #             print e.args[0], ":", line
-        #             continue
-
-        #         if main == cid:
-        #             indegree = p_indegree.findall(line)
-        #             for d in indegree:
-        #                 item = d.split("-")
-        #                 if item[0]=='0' or item[0]==main:
-        #                     continue
-        #                 upstream[item[0]] = int(item[1])
-
-        #             break
-
         # print 'upstream:', upstream
         # u0 = upstream.most_common()
-        if up_down == 0:            # indegree
-            u0 = adj_in[cid]
-        else:
-            u0 = adj_out[cid]
+
+        try:
+            if up_down == 0:            # indegree
+                u0 = adj_in[cid]
+            else:
+                u0 = adj_out[cid]
+        except KeyError,e:
+            print e
+            u0 = []
 
         u1 = [(item[0], float(item[1]-u0[-1][1]) / (u0[0][1]-u0[-1][1])) for item in u0]
         u2 = [item for item in u1 if item[1]>0.1]
@@ -255,7 +238,6 @@ def query_tgs_info():
 
         print 'top edges: ', u2
 
-        # filtered = filter(lambda x: x[2]==cid, res)
         ret['status'] = 0
         ret['data'] = {'main':cid, 'upstream':top}
 

@@ -21,6 +21,7 @@ import shared as shd
 from datetime import datetime
 import hbase.ttypes as htt
 import re
+import struct
 
 host, port = "10.2.25.115", 9090
 
@@ -31,6 +32,8 @@ def load_adj_info(indegree=True):
     1--outdegree
     return adjcency list.
     """
+    tgsinfo = shd.read_tgs_info()
+
     p_main = re.compile("\d+,")
     p_degree = re.compile("\d+-\d+")
 
@@ -39,7 +42,9 @@ def load_adj_info(indegree=True):
     else:
         fname = os.path.join(root_dir,"data","adj_outdegree.txt")
 
-    adj = {}
+    adj = dict([(cid,[]) for cid in tgsinfo.keys()])
+    tgsinfo.clear()
+
     with open(fname,"r") as f:
         for line in f.readlines():
             try:
@@ -47,8 +52,6 @@ def load_adj_info(indegree=True):
             except AttributeError,e:
                 print e.args[0], ":", line
                 continue
-
-            adj[main] = []
 
             degree = p_degree.findall(line)
             for d in degree:
@@ -131,7 +134,7 @@ def load_edge_info(indegree=True):
 def query_traj(stime,etime, numb):
     tbl = 'tr_plate_jun'
 
-    (client,trpt) = get_thrift_client(host,port)
+    (client,trpt) = shd.get_thrift_client(host,port)
 
     begtime = long(time.mktime(stime.timetuple())*1000)
     endtime = long(time.mktime(etime.timetuple())*1000)
@@ -443,7 +446,7 @@ def query_vehicle_trajetory(numb,ptype,stime,etime):
     begtime = long(time.mktime(stime.timetuple())*1000)
     endtime = long(time.mktime(etime.timetuple())*1000)
 
-    (client,trpt) = get_thrift_client(host,port)
+    (client,trpt) = shd.get_thrift_client(host,port)
 
     trpt.open()
 
@@ -452,26 +455,26 @@ def query_vehicle_trajetory(numb,ptype,stime,etime):
     scan.caching = 110
     # scan.filterString = "RowFilter(=, 'substring:%s') AND KeyOnlyFilter()" % (numb)
     # scan.filterString = "KeyOnlyFilter()"
-    scan.startRow = struct.pack(">10sQ", numb,begtime)
+    scan.startRow = struct.pack(">10sQ", numb, begtime)
     scan.stopRow = struct.pack(">10sQ", numb, endtime)
 
     scanner = client.scannerOpenWithScan(tbl,scan,None)
 
     traj = []
     while 1:
-        dataset = client.scannerGetList(scanner,buf_max_size)
+        dataset = client.scannerGetList(scanner,shd.buf_max_size)
         for elem in dataset:
             numb_type = struct.unpack("B",elem.columns['cf:'].value[35:36])[0]
             if numb_type != int(ptype):
                 continue
 
             passtime = datetime.fromtimestamp(struct.unpack(">Q",elem.row[10:18])[0]/1000.0).strftime("%Y-%m-%d %H:%M:%S")
-            cid = unbyte_cid(elem.row[18:20])
+            cid = shd.unbyte_cid(elem.row[18:20])
             drivedir = struct.unpack("B",elem.columns['cf:'].value[37:38])[0]
 
             traj.append((passtime,cid,drivedir))
 
-        if len(dataset) < buf_max_size:
+        if len(dataset) < shd.buf_max_size:
             break
 
     trpt.close()
@@ -513,12 +516,35 @@ def stat_tgs_volume(cid, stime,etime):
 
     return n_records
 
-if __name__ == '__main__':
-    begtime = datetime(2015,6,14,0,0,0)
-    endtime = datetime(2015,6,15,0,0,0)
+def calc_vehicle_traveltime(numb,ptype,stime,etime):
+    from dateutil.parser import parse
 
-    adj = load_edge_info(False)
-    print adj['1']
+    traj = query_vehicle_trajetory(numb,ptype,stime,etime)
+    # print traj[0]
+
+    traveltime = []
+    for i in xrange(1,len(traj)):
+        elem = (traj[i][0], traj[i][1], traj[i][2], (parse(traj[i][0])-parse(traj[i-1][0])).total_seconds())
+        traveltime.append(elem)
+
+    fname = os.path.join(root_dir,"result", "%s_traveltime.txt" % (numb.decode("gbk")))
+    with open(fname, "w") as f:
+        for elem in traveltime:
+            line = "%s,%d,%d,%.1f\n" % (elem[0],elem[1],elem[2],elem[3])
+            f.write(line)
+
+    print "%d records written to '%s'." % (len(traveltime),fname)
+
+
+if __name__ == '__main__':
+    begtime = datetime(2015,6,1,0,0,0)
+    endtime = datetime(2015,7,1,0,0,0)
+
+    numb = u"鄂A78B07".encode("gbk")
+    calc_vehicle_traveltime(numb,"02",begtime,endtime)
+
+    # adj = load_edge_info(False)
+    # print adj['1']
 
     # adj2 = load_adj_info(indegree=False)
     # print adj2['589']
