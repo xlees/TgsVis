@@ -57,7 +57,7 @@ def load_adj_info(indegree=True):
             for d in degree:
                 item = d.split("-")
 
-                if item[0]=='0' or item[0]==main:
+                if item[0]=='0' or item[0]==main or item[0]=="88888":
                     continue
 
                 adj[main].append((item[0], int(item[1])))
@@ -484,11 +484,11 @@ def query_vehicle_trajetory(numb,ptype,stime,etime):
 def stat_tgs_volume(cid, stime,etime):
     tbl = "tr_bay_jun"
 
-    b_cid = byte_cid(cid)
+    b_cid = shd.byte_cid(cid)
     begtime = long(time.mktime(stime.timetuple())*1000)
     endtime = long(time.mktime(etime.timetuple())*1000)
 
-    (client,trpt) = get_thrift_client(host,port)
+    (client,trpt) = shd.get_thrift_client(host,port)
 
     trpt.open()
 
@@ -504,10 +504,10 @@ def stat_tgs_volume(cid, stime,etime):
 
     n_records = 0
     while 1:
-        dataset = client.scannerGetList(scanner,buf_max_size)
+        dataset = client.scannerGetList(scanner,shd.buf_max_size)
         n_records += len(dataset)
 
-        if len(dataset) < buf_max_size:
+        if len(dataset) < shd.buf_max_size:
             break
 
         del dataset[:]
@@ -535,13 +535,29 @@ def calc_vehicle_traveltime(numb,ptype,stime,etime):
 
     print "%d records written to '%s'." % (len(traveltime),fname)
 
+def estimate_vehicle_freq(traj):
+    """
+    given vehicle trajetory, return its freq and total travel time.
+    """
+    max_stay_time = 3000
+
+    if len(traj) < 3:
+        return
+
+    result = []
+    start = 0
+    for i in xrange(1,len(traj)):
+        ttime = (traj[i][0] - traj[i-1][0]).total_seconds()
+        if ttime > max_stay_time:
+            result.append(traj[start:i])
+            start = i
 
 if __name__ == '__main__':
     begtime = datetime(2015,6,1,0,0,0)
     endtime = datetime(2015,7,1,0,0,0)
 
-    numb = u"鄂A78B07".encode("gbk")
-    calc_vehicle_traveltime(numb,"02",begtime,endtime)
+    # numb = u"鄂A78B07".encode("gbk")
+    # calc_vehicle_traveltime(numb,"02",begtime,endtime)
 
     # adj = load_edge_info(False)
     # print adj['1']
@@ -549,8 +565,8 @@ if __name__ == '__main__':
     # adj2 = load_adj_info(indegree=False)
     # print adj2['589']
 
-    # cid = 128
-    # n = stat_tgs_volume(cid,begtime,endtime)
-    # print '%d: %d records.' % (cid,n)
+    cid = 1015
+    n = stat_tgs_volume(cid,begtime,endtime)
+    print '%d: %d records.' % (cid,n)
 
 

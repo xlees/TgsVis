@@ -588,7 +588,19 @@
             return;
         }
 
-        $.getJSON("/query-tgs",{"numb":cont,"dtype":0}, function(json) {
+        var dtype = 0;
+        if ($('#degree-select').is(":visible")) {
+            var val = $('#degree-select .active input').val();
+            console.log(val);
+
+            if (val == "indegree")
+                dtype = 0;
+            else
+                dtype = 1;
+
+        }
+
+        $.getJSON("/query-tgs",{"numb":cont,"dtype":dtype}, function(json) {
 
             if (json.status == 1) {
 

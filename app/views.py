@@ -206,6 +206,8 @@ def query_tgs_info():
     cid = request.args.get('numb', '')
     up_down = request.args.get('dtype',0,type=int)      # default upstream
 
+    print "up_down:",up_down
+
     ret = {}
 
     if cid == '':
@@ -233,7 +235,7 @@ def query_tgs_info():
             u0 = []
 
         u1 = [(item[0], float(item[1]-u0[-1][1]) / (u0[0][1]-u0[-1][1])) for item in u0]
-        u2 = [item for item in u1 if item[1]>0.1]
+        u2 = [item for item in u1 if item[1]>0.4]
         top = dict(u2)
 
         print 'top edges: ', u2
