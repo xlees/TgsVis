@@ -15,6 +15,7 @@ import struct
 import requests as req
 import base64
 import json
+import re
 
 # from twisted.internet import reactor, defer, task
 # from twisted.internet.threads import deferToThread
@@ -28,10 +29,13 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 
 from hbase import Hbase
+from collections import defaultdict
 
 
 buf_max_size = 5000
 ak = "Dafb6wSsEnWv8QnT3TOcAfk7"
+
+def tree(): return defaultdict(tree)
 
 
 def byte_cid(cid):
@@ -125,9 +129,16 @@ def read_tgs_info():
 
     # read avail tgs
     avail_tgs = set()
-    with open(os.path.join(root_dir, "data", "avail_tgs.txt"), "r") as f:
+    p_main = re.compile("\d+,")
+    with open(os.path.join(root_dir, "data", "adj_indegree.txt"), "r") as f:
         for line in f.readlines():
-            avail_tgs.add(line[:-1])
+            try:
+                main = p_main.search(line).group()[:-1]
+            except AttributeError,e:
+                print e.args[0], ":", line
+                continue
+
+            avail_tgs.add(main)
 
     cache_file = os.path.join(root_dir,"data","tgs_info_bd.txt")
     ret = {}

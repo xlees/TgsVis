@@ -12,7 +12,7 @@ import analysis as aly
 # from analysis import load_od_data
 from dateutil.parser import parse
 
-cols = ['KKID','KKMC','CLOUD_ID','X','Y']
+# cols = ['KKID','KKMC','CLOUD_ID','X','Y']
 tgsinfo = shd.read_tgs_info()               # all tgs info
 adj_out = aly.load_adj_info(False)
 adj_in = aly.load_adj_info(True)
@@ -41,7 +41,7 @@ def response_tgs_info():
     c = map(lambda x: x/len(locs), center)
 
     result = {
-        'status':0,
+        'status': 0,
         'data': tgsinfo,
         'center': c,
     }
@@ -245,30 +245,30 @@ def query_tgs_info():
 
     return jsonify(ret,ensure_ascii=False)
 
-@app.route('/load-tgs')
-def load_tgs_info():
+# @app.route('/load-tgs')
+# def load_tgs_info():
 
-    tgs_info = pd.read_csv('tgsinfo.csv')[cols]
-    # temp = tgs_info[cols].to_dict()
+#     tgs_info = pd.read_csv('tgsinfo.csv')[cols]
+#     # temp = tgs_info[cols].to_dict()
 
-    res = tgs_info.apply(transform, axis=1).tolist()
+#     res = tgs_info.apply(transform, axis=1).tolist()
 
-    # res = list(tgs_info[cols].itertuples())
-    # res1 = [dict(zip(cols,item[1:])) for item in res]
+#     # res = list(tgs_info[cols].itertuples())
+#     # res1 = [dict(zip(cols,item[1:])) for item in res]
 
-    print 'length of res:', len(res),'typeof : ', type(res)
-    print res[:3]
+#     print 'length of res:', len(res),'typeof : ', type(res)
+#     print res[:3]
 
-    # load available kakou
-    avail = []
-    with open("avail.txt","r") as f:
-        avail.extend(f.read().split("\n"))
-    # print 'avail ',avail
+#     # load available kakou
+#     avail = []
+#     with open("avail.txt","r") as f:
+#         avail.extend(f.read().split("\n"))
+#     # print 'avail ',avail
 
-    ret = {
-        'data': res,
-        'avail': avail,
-        'status': 0,
-    }
+#     ret = {
+#         'data': res,
+#         'avail': avail,
+#         'status': 0,
+#     }
 
-    return json.dumps(ret,ensure_ascii=False)
+#     return json.dumps(ret,ensure_ascii=False)

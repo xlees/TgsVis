@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(root_dir,"app","gen-py"))
 
 
 import numpy as np
+from collections import Counter
 # np.seterr(divide='ignore', invalid='ignore')
 
 
@@ -496,7 +497,7 @@ def stat_tgs_volume(cid, stime,etime):
     scan.columns = ['cf:']
     scan.caching = 110
     # scan.filterString = "RowFilter(=, 'substring:%s') AND KeyOnlyFilter()" % (numb)
-    # scan.filterString = "KeyOnlyFilter()"
+    scan.filterString = "KeyOnlyFilter()"
     scan.startRow = struct.pack(">2sQ", b_cid, begtime)
     scan.stopRow = struct.pack(">2sQ", b_cid, endtime)
 
@@ -539,22 +540,98 @@ def estimate_vehicle_freq(traj):
     """
     given vehicle trajetory, return its freq and total travel time.
     """
-    max_stay_time = 3000
+    max_stay_time = 2700    # 50 min
 
     if len(traj) < 3:
         return
 
+    from dateutil.parser import parse
+
     result = []
     start = 0
     for i in xrange(1,len(traj)):
-        ttime = (traj[i][0] - traj[i-1][0]).total_seconds()
+        ttime = (parse(traj[i][0]) - parse(traj[i-1][0])).total_seconds()
         if ttime > max_stay_time:
             result.append(traj[start:i])
             start = i
 
+    result.append(traj[start:])
+
+    return result
+
+def create_od_tree(travels):
+    """
+    list of travels list.
+    """
+    from collections import defaultdict
+
+    od = defaultdict(lambda: 0)
+    # d = defaultdict(lambda: 0)
+
+    for e in travels:
+        tgs_seq = tuple([(elem[1],elem[2]) for elem in e])
+        od[tgs_seq] += 1
+
+        # tgs_seq_r = tgs_seq[::-1]
+        # d[tgs_seq_r] += 1
+
+    return od
+
+def get_o_route(od, oset):
+    result = {}
+    # dset = defaultdict(lambda: 0)
+    dset = Counter()
+    for k,count in od.iteritems():
+        if not k[0][0] in oset:
+            continue
+
+        result[k] = count
+        dset[k[-1][0]] += count
+        # dset.add((k[-1][0],count))
+
+    return (result,dset)
+
+def get_d_route(od, dset):
+    result = {}
+    oset = Counter()
+    for k,count in od.iteritems():
+        if not k[-1][0] in dset:
+            continue
+
+        result[k] = count
+        # oset.add((k[0][0],count))
+        oset[k[0][0]] += count
+
+    return (result,oset)
+
+
 if __name__ == '__main__':
     begtime = datetime(2015,6,1,0,0,0)
-    endtime = datetime(2015,7,1,0,0,0)
+    endtime = datetime(2015,6,2,0,0,0)
+
+    numb = u"鄂AF8R13".encode("gbk")
+    traj = query_vehicle_trajetory(numb,"02",begtime,endtime)
+    res = estimate_vehicle_freq(traj)
+
+    # for elem in res:
+    #     for e in elem:
+    #         print e
+    #     print
+    print 'totally %d going-out.' % (len(res))
+
+    od = create_od_tree(res)
+    # for k,v in od.iteritems():
+    #     print k,'-->',v
+
+    oset = {232}
+    route,dset = get_o_route(od,oset)
+    print 'route:'
+    for k,v in route.iteritems():
+        print k,'--->',v
+
+    print 'destinations:'
+    for k,v in dset.iteritems():
+        print k,'-->',v
 
     # numb = u"鄂A78B07".encode("gbk")
     # calc_vehicle_traveltime(numb,"02",begtime,endtime)
@@ -565,8 +642,8 @@ if __name__ == '__main__':
     # adj2 = load_adj_info(indegree=False)
     # print adj2['589']
 
-    cid = 1015
-    n = stat_tgs_volume(cid,begtime,endtime)
-    print '%d: %d records.' % (cid,n)
+    # cid = 10193
+    # n = stat_tgs_volume(cid,begtime,endtime)
+    # print '%d: %d records.' % (cid,n)
 
 

@@ -390,6 +390,9 @@
     });
 
     $("#tgs-select input").on("change", function () {
+
+        // $(this).parent('label').addClass('active');
+
         var sel = $(this).val();
 
         if (sel == "tgs-all") {
@@ -574,6 +577,8 @@
     });
 
     $('#query-vehicle').click(function() {
+
+        // $('#tgs-select label').removeClass('active');
 
         if (typeof(adj)!= "undefined" && adj.length>0) {
             for (var i in adj) {
