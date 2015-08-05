@@ -645,5 +645,3 @@ if __name__ == '__main__':
     # cid = 10193
     # n = stat_tgs_volume(cid,begtime,endtime)
     # print '%d: %d records.' % (cid,n)
-
-
