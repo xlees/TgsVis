@@ -4,6 +4,8 @@ from app import app
 from flask import render_template,url_for,jsonify,request,render_template_string
 import pandas as pd
 import json
+import time
+import math
 
 # from app.helper import EvilTransform
 # from test.test_asso import *
@@ -11,12 +13,48 @@ import shared as shd
 import analysis as aly
 # from analysis import load_od_data
 from dateutil.parser import parse
+from dateutil.relativedelta import relativedelta
+from datetime import datetime
 
 # cols = ['KKID','KKMC','CLOUD_ID','X','Y']
 tgsinfo = shd.read_tgs_info()               # all tgs info
 adj_out = aly.load_adj_info(False)
 adj_in = aly.load_adj_info(True)
 
+
+@app.route('/get-day-travel-span')
+def get_day_travel_span():
+    now = datetime.now().replace(hour=0,minute=0,second=0,microsecond=0)
+
+    begtime = request.args.get('begtime',(now+relativedelta(months=-1)).strftime("%Y-%m-%d %H:%M:%S"),type=str)
+    endtime = request.args.get('endtime',now.strftime("%Y-%m-%d %H:%M:%S"),type=str)
+    numb = request.args.get("numb",u"鄂AF8R13".encode("utf-8"), type=str).decode("utf-8").encode("gbk")
+    ptype = request.args.get("ptype","02",type=str)
+
+    print "numb: ",numb,type(numb)
+
+    tseries = shd.daily(parse(begtime), parse(endtime))
+
+    # travel_freq = []
+    freqs = {}
+    spans = {}
+    for i in xrange(0,len(tseries)-1):
+        traj = aly.query_vehicle_trajetory(numb,ptype, tseries[i],tseries[i+1])
+        tlist = aly.estimate_vehicle_freq(traj)
+        span,count = aly.get_day_travel_span(tlist)
+
+        timestamp = long(time.mktime(tseries[i].timetuple()))
+
+        freqs[timestamp] = count
+        spans[timestamp] = round(span,1)
+
+    ret = {
+        'tseries': tseries,
+        'span': spans,
+        'freq': freqs,
+    }
+
+    return jsonify(ret)
 
 @app.route('/gps-to-bd')
 def gps_to_bd():

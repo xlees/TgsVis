@@ -604,6 +604,27 @@ def get_d_route(od, dset):
 
     return (result,oset)
 
+def get_day_travel_span(travel_list):
+    """
+    query day travel span. (0<=span<24)
+    """
+    from dateutil.parser import parse
+
+    if travel_list is None:
+        return (0.0,0)
+
+    span = 0.0
+    count = 0
+    for elem in travel_list:
+        count += 1
+
+        if len(elem) == 0:
+            continue
+
+        span += (parse(elem[-1][0])-parse(elem[0][0])).total_seconds() / 3600.0
+
+    return (span,count)
+
 
 if __name__ == '__main__':
     begtime = datetime(2015,6,1,0,0,0)
@@ -619,19 +640,22 @@ if __name__ == '__main__':
     #     print
     print 'totally %d going-out.' % (len(res))
 
-    od = create_od_tree(res)
-    # for k,v in od.iteritems():
+    span,count = get_day_travel_span(res)
+    print 'travel total span:', span, "count:",count
+
+    # od = create_od_tree(res)
+    # # for k,v in od.iteritems():
+    # #     print k,'-->',v
+
+    # oset = {232}
+    # route,dset = get_o_route(od,oset)
+    # print 'route:'
+    # for k,v in route.iteritems():
+    #     print k,'--->',v
+
+    # print 'destinations:'
+    # for k,v in dset.iteritems():
     #     print k,'-->',v
-
-    oset = {232}
-    route,dset = get_o_route(od,oset)
-    print 'route:'
-    for k,v in route.iteritems():
-        print k,'--->',v
-
-    print 'destinations:'
-    for k,v in dset.iteritems():
-        print k,'-->',v
 
     # numb = u"鄂A78B07".encode("gbk")
     # calc_vehicle_traveltime(numb,"02",begtime,endtime)

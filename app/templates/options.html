@@ -299,6 +299,24 @@
         }
     };
 
+    // draw calendar heatmap
+    var begtime = new Date(2015, 5, 1);
+    var startTimestamp = new Date(2015, 5, 1).getTime()/1000;
+    // console.log(begtime);
+
+    var parser = function(data) {
+        // console.log(data);
+
+        var stats = {};
+        for (var i=0; i<data.length; i++) {
+            stats[+data[i].Day*86400+startTimestamp] = +data[i].Counts;
+        }
+
+        // console.log(stats);
+
+        return stats;
+    };
+
     $(document).ready(function() {
         $(".datetime-picker").datetimepicker({
             // showOn: "button",
@@ -587,8 +605,6 @@
 
     $('#query-vehicle').click(function() {
 
-        // $('#tgs-select label').removeClass('active');
-
         if (typeof(adj)!= "undefined" && adj.length>0) {
             for (var i in adj) {
                 // console.log(i);
@@ -602,43 +618,120 @@
             return;
         }
 
-        var dtype = 0;
-        if ($('#degree-select').is(":visible")) {
-            var val = $('#degree-select .active input').val();
-            console.log(val);
+        // check
+        var reg = /^\d/;
+        if (reg.exec(cont) != null) {
+            console.log("tgsid input");
 
-            if (val == "indegree")
-                dtype = 0;
-            else
-                dtype = 1;
+            var dtype = 0;
+            if ($('#degree-select').is(":visible")) {
+                var val = $('#degree-select .active input').val();
+                console.log(val);
+
+                if (val == "indegree")
+                    dtype = 0;
+                else
+                    dtype = 1;
+
+            }
+
+            $.getJSON("/query-tgs",{"numb":cont,"dtype":dtype}, function(json) {
+
+                if (json.status == 1) {
+
+                    alert(json.msg);
+                    // $('#query-vehicle').popover({
+                    //     html: 'hello',
+                    // });
+                    // $('#query-vehicle').popover('toggle');
+                }
+                else if (json.status == 0) {
+                    $('#degree-select').show();
+
+                    console.log(tgsinfo[json.data.main]);
+
+                    map.clearOverlays();
+                    draw_adj(json.data.main, json.data.upstream);
+
+                }
+                else {
+                    console.log("null input!");
+                }
+
+                map.addControl(ctrl);
+            });
 
         }
+        else {
+            console.log("numb input");
 
-        $.getJSON("/query-tgs",{"numb":cont,"dtype":dtype}, function(json) {
+            var cal = new CalHeatMap();
+            $.getJSON("/get-day-travel-span",
+                    {"begtime":"2015-06-01", "endtime":"2015-07-01","ptype":"02","numb":cont},
 
-            if (json.status == 1) {
+                function(json) {
 
-                alert(json.msg);
-                // $('#query-vehicle').popover({
-                //     html: 'hello',
-                // });
-                // $('#query-vehicle').popover('toggle');
-            }
-            else if (json.status == 0) {
-                $('#degree-select').show();
+                    console.log(json.span);
 
-                console.log(tgsinfo[json.data.main]);
+                    $('#cal-heatmap').html('');
 
-                map.clearOverlays();
-                draw_adj(json.data.main, json.data.upstream);
+                    cal.init({
+                        // data: "{{ url_for('static', filename='datas-hours.csv') }}",
+                        // dataType: "csv",
+                        data: json.span,
+                        itemSelector: "#cal-heatmap",
+                        start: begtime,
+                        // afterLoadData: parser,
+                        domain: "month",
+                        domainGutter: 3,
+                        subDomain: "x_day",
+                        range: 1,
+                        cellSize: 20,
+                        // highlight: ["now"],
+                        subDomainDateFormat: function(date) {
+                            var format = d3.time.format("%m/%d, %a");
+                            return format(date); // Use the moment library to format the Date
+                        },
+                        domainLabelFormat: "%m月",
+                        legend: [1, 2, 3, 4, 5, 6],
+                        itemName: ["小时","小时"],
+                        legendTitleFormat: {
+                            lower: '<{min}{name}',
+                            inner: '[{down}, {up}){name}',
+                            upper: '>{max}{name}'
+                        },
+                        cellRadius: 2,
+                        cellPadding: 4,
+                        verticalOrientation: true,
+                        // legendColors: {
+                        //     empty: "#ededed",
+                        //     min: "#40ffd8",
+                        //     max: "#f20013"
+                        // },
+                        onClick: function(date, value) {
+                            var format = d3.time.format("%m/%d, %a");
+                            $("#placeholder").slideDown("slow");
+                            $("#placeholder").html(format(date)+":</br> 出行时长 <b>"+value+"</b> 小时.");
+                        },
+                        onComplete: function() {
 
-            }
-            else {
-                console.log("null input!");
-            }
+                            $('#cal-heatmap').animate({
+                                height: "200px",
+                                width: "100%"
+                            }, 800,"linear",function() {
 
-            map.addControl(ctrl);
-        });
+                                // $('#btn-remove').show();
+                            });
+                        },
+                        legendColors: ["#ecf5e2", "#232181"],
+                        // subDomainTextFormat: "%d",
+                        tooltip: true,
+                    });
+
+            });
+        }
+
+
     });
 
     $('#btn-clear').click(function() {
@@ -650,65 +743,5 @@
         map.removeControl(ctrl);
     });
 
-    // console.log(CN);
 
-    var begtime = new Date(2015, 5, 1);
-    var startTimestamp = new Date(2015, 5, 1).getTime()/1000;
-    console.log(begtime);
-
-    var parser = function(data) {
-        // console.log(data);
-
-        var stats = {};
-        for (var i=0; i<data.length; i++) {
-            stats[+data[i].Day*86400+startTimestamp] = +data[i].Counts;
-        }
-
-        // console.log(stats);
-
-        return stats;
-    };
-
-    var cal = new CalHeatMap();
-    cal.init({
-        data: "{{ url_for('static', filename='datas-hours.csv') }}",
-        dataType: "csv",
-        itemSelector: "#cal-heatmap",
-        start: begtime,
-        afterLoadData: parser,
-        domain: "month",
-        domainGutter: 3,
-        subDomain: "x_day",
-        range: 2,
-        cellSize: 20,
-        // highlight: ["now"],
-        subDomainDateFormat: function(date) {
-            var format = d3.time.format("%m/%d, %a");
-            return format(date); // Use the moment library to format the Date
-        },
-        domainLabelFormat: "%m月",
-        legend: [1, 2, 3, 4, 5, 6],
-        itemName: ["小时","小时"],
-        legendTitleFormat: {
-            lower: '<{min}{name}',
-            inner: '[{down}, {up}){name}',
-            upper: '>{max}{name}'
-        },
-        cellRadius: 2,
-        cellPadding: 4,
-        verticalOrientation: true,
-        legendColors: {
-            empty: "#ededed",
-            min: "#40ffd8",
-            max: "#f20013"
-        },
-        onClick: function(date, value) {
-            var format = d3.time.format("%m/%d, %a");
-            $("#placeholder").slideDown("slow");
-            $("#placeholder").html(format(date)+":</br> 出行时长 <b>"+value+"</b> 小时.");
-        },
-        // legendColors: ["#ecf5e2", "#232181"],
-        // subDomainTextFormat: "%d",
-        tooltip: true,
-    });
 </script>
