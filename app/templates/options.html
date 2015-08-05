@@ -73,6 +73,15 @@
         </div>
     </div>
 
+    <div class="row">
+        <div class="col-md-8 col-md-offset-0">
+            <div id="cal-heatmap"></div>
+        </div>
+        <div class="col-md-4 col-md-offset-0">
+            <div id="placeholder"></div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -639,5 +648,67 @@
         map.setMapStyle({style:"normal"});
 
         map.removeControl(ctrl);
+    });
+
+    // console.log(CN);
+
+    var begtime = new Date(2015, 5, 1);
+    var startTimestamp = new Date(2015, 5, 1).getTime()/1000;
+    console.log(begtime);
+
+    var parser = function(data) {
+        // console.log(data);
+
+        var stats = {};
+        for (var i=0; i<data.length; i++) {
+            stats[+data[i].Day*86400+startTimestamp] = +data[i].Counts;
+        }
+
+        // console.log(stats);
+
+        return stats;
+    };
+
+    var cal = new CalHeatMap();
+    cal.init({
+        data: "{{ url_for('static', filename='datas-hours.csv') }}",
+        dataType: "csv",
+        itemSelector: "#cal-heatmap",
+        start: begtime,
+        afterLoadData: parser,
+        domain: "month",
+        domainGutter: 3,
+        subDomain: "x_day",
+        range: 2,
+        cellSize: 20,
+        // highlight: ["now"],
+        subDomainDateFormat: function(date) {
+            var format = d3.time.format("%m/%d, %a");
+            return format(date); // Use the moment library to format the Date
+        },
+        domainLabelFormat: "%m月",
+        legend: [1, 2, 3, 4, 5, 6],
+        itemName: ["小时","小时"],
+        legendTitleFormat: {
+            lower: '<{min}{name}',
+            inner: '[{down}, {up}){name}',
+            upper: '>{max}{name}'
+        },
+        cellRadius: 2,
+        cellPadding: 4,
+        verticalOrientation: true,
+        legendColors: {
+            empty: "#ededed",
+            min: "#40ffd8",
+            max: "#f20013"
+        },
+        onClick: function(date, value) {
+            var format = d3.time.format("%m/%d, %a");
+            $("#placeholder").slideDown("slow");
+            $("#placeholder").html(format(date)+":</br> 出行时长 <b>"+value+"</b> 小时.");
+        },
+        // legendColors: ["#ecf5e2", "#232181"],
+        // subDomainTextFormat: "%d",
+        tooltip: true,
     });
 </script>
