@@ -73,7 +73,7 @@
         </div>
     </div>
 
-    <div class="row">
+    <div id="row-freq-heatmap" class="row">
         <div class="col-md-8 col-md-offset-0">
             <div id="cal-heatmap"></div>
         </div>
@@ -623,6 +623,8 @@
         if (reg.exec(cont) != null) {
             console.log("tgsid input");
 
+            $('#cal-heatmap').empty();
+
             var dtype = 0;
             if ($('#degree-select').is(":visible")) {
                 var val = $('#degree-select .active input').val();
@@ -639,11 +641,7 @@
 
                 if (json.status == 1) {
 
-                    alert(json.msg);
-                    // $('#query-vehicle').popover({
-                    //     html: 'hello',
-                    // });
-                    // $('#query-vehicle').popover('toggle');
+                    mbox("卡口 '"+cont+"' 不存在.");
                 }
                 else if (json.status == 0) {
                     $('#degree-select').show();
@@ -672,6 +670,14 @@
                 function(json) {
 
                     console.log(json.span);
+
+                    if (json.status == 1) {
+                        console.log(cont+" 没有过车记录.");
+
+                        mbox("车牌 '"+cont+"' 没有过车记录.");
+
+                        return;
+                    }
 
                     $('#cal-heatmap').html('');
 

@@ -33,6 +33,14 @@ def get_day_travel_span():
 
     print "numb: ",numb,type(numb)
 
+    if not aly.check_vehicle_records(numb,ptype, parse(begtime),parse(endtime)):
+        ret = {
+            'status': 1,
+            'msg': 'No passcar records.',
+        }
+
+        return jsonify(ret)
+
     tseries = shd.daily(parse(begtime), parse(endtime))
 
     # travel_freq = []
@@ -49,6 +57,7 @@ def get_day_travel_span():
         spans[timestamp] = round(span,1)
 
     ret = {
+        'status': 0,
         'tseries': tseries,
         'span': spans,
         'freq': freqs,

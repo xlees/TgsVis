@@ -441,7 +441,17 @@ def stat_first_tgs(stime,etime):
             f.write(line)
     print 'finished.'
 
+def check_vehicle_records(numb,ptype,stime,etime):
+    traj = query_vehicle_trajetory(numb,ptype,stime,etime)
+    if len(traj) == 0:
+        return False
+    else:
+        return True
+
 def query_vehicle_trajetory(numb,ptype,stime,etime):
+    """
+    return vehicle trajetory given time range.
+    """
     tbl = "tr_plate_jun"
 
     begtime = long(time.mktime(stime.timetuple())*1000)
@@ -463,7 +473,7 @@ def query_vehicle_trajetory(numb,ptype,stime,etime):
 
     traj = []
     while 1:
-        dataset = client.scannerGetList(scanner,shd.buf_max_size)
+        dataset = client.scannerGetList(scanner, shd.buf_max_size)
         for elem in dataset:
             numb_type = struct.unpack("B",elem.columns['cf:'].value[35:36])[0]
             if numb_type != int(ptype):
@@ -479,6 +489,11 @@ def query_vehicle_trajetory(numb,ptype,stime,etime):
             break
 
     trpt.close()
+
+    if len(traj) == 0:
+        print "'%s' no records in time range [%s,%s)." % (numb,
+                                                          stime.strftime("%Y-%m-%d %H:%M:%S"),
+                                                          etime.strftime("%Y-%m-%d %H:%M:%S"))
 
     return traj
 
@@ -542,8 +557,10 @@ def estimate_vehicle_freq(traj):
     """
     max_stay_time = 2700    # 50 min
 
+    # print "traj:", traj
+
     if len(traj) < 3:
-        return
+        return [traj]
 
     from dateutil.parser import parse
 
@@ -610,16 +627,18 @@ def get_day_travel_span(travel_list):
     """
     from dateutil.parser import parse
 
-    if travel_list is None:
-        return (0.0,0)
+    if len(travel_list) < 2:
+        return (0.0, 0)
 
     span = 0.0
     count = 0
     for elem in travel_list:
         count += 1
 
-        if len(elem) == 0:
+        if len(elem) < 2:
             continue
+
+        # print elem
 
         span += (parse(elem[-1][0])-parse(elem[0][0])).total_seconds() / 3600.0
 
