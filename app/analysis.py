@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(root_dir,"app","gen-py"))
 
 
 import numpy as np
-from collections import Counter
+from collections import Counter,defaultdict
 # np.seterr(divide='ignore', invalid='ignore')
 
 
@@ -576,11 +576,123 @@ def estimate_vehicle_freq(traj):
 
     return result
 
+def _request_passcar(cid, stime,etime):
+    tbl = "tr_bay_jun"
+
+    b_cid = shd.byte_cid(cid)
+    begtime = long(time.mktime(stime.timetuple())*1000)
+    endtime = long(time.mktime(etime.timetuple())*1000)
+
+    (client,trpt) = shd.get_thrift_client(host,port)
+
+    trpt.open()
+
+    scan = htt.TScan()
+    scan.columns = ['cf:']
+    scan.caching = 110
+    # scan.filterString = "RowFilter(=, 'substring:%s') AND KeyOnlyFilter()" % (numb)
+    # scan.filterString = "KeyOnlyFilter()"
+    scan.startRow = struct.pack(">2sQ", b_cid, begtime)
+    scan.stopRow = struct.pack(">2sQ", b_cid, endtime)
+
+    scanner = client.scannerOpenWithScan(tbl,scan,None)
+
+    result = []
+    while 1:
+        dataset = client.scannerGetList(scanner,shd.buf_max_size)
+
+        for elem in dataset:
+            cloudid = shd.unbyte_cid(elem.row[:2])
+            passtime = datetime.fromtimestamp(struct.unpack(">Q",elem.row[2:10])[0]/1000.0)
+            numb = elem.row[10:].decode('gbk')
+            ptype = struct.unpack("B",elem.columns['cf:'].value[35:36])[0]
+            drivedir = struct.unpack("B",elem.columns['cf:'].value[37:38])[0]
+
+            result.append({
+                'cid': cloudid,
+                'passtime': passtime,
+                'numb': numb,
+                'ptype': ptype,
+                'drivedir': drivedir,
+            })
+
+        if len(dataset) < shd.buf_max_size:
+            break
+
+    result.sort(key=lambda x: x['passtime'], reverse=False)
+
+    trpt.close()
+
+    return result
+
+def request_passcar(stime,etime,car_only=False):
+    from multiprocessing.pool import Pool
+    import cPickle as pickle
+
+    s = stime.strftime('%Y%m%d%H%M%S')
+    e = etime.strftime('%Y%m%d%H%M%S')
+
+    cname = os.path.join(root_dir,"result","%s-%s.pkl" % (s,e))
+    if os.path.exists(cname):
+        with open(cname,"rb") as f:
+            result = pickle.load(f)
+
+        return result
+
+    tgsinfo = shd.read_tgs_info()
+
+    pool = Pool(4)
+    result = [pool.apply_async(_request_passcar,args=(int(cid),stime,etime)) for cid in tgsinfo.keys()]
+    pool.close()
+
+    print 'waiting for finishing...'
+    pool.join()
+
+    ret0 = [elem.get() for elem in result]
+    # print ret0
+    ret = reduce(lambda x,y: sorted(x+y,key=lambda x:x['passtime']), ret0)
+
+    # cache
+    with open(cname,"wb") as f:
+        pickle.dump(ret,f)
+
+    if car_only:
+        cars = [(elem['numb'],elem['ptype']) for elem in ret]
+        return set(cars)
+    else:
+        return ret
+
+def extract_travel_list(passcar):
+    cars = defaultdict(lambda: [])
+    max_stay_time = 3000
+
+    for elem in passcar:
+        cars[(elem['numb'],elem['ptype'])].append(elem)
+
+    print 'totally %d cars.' % (len(cars))
+
+    ods = {}
+    for car,traj in cars.iteritems():
+        od = []
+        for i in xrange(1,len(traj)):
+            if (traj[i]['passtime']-traj[i-1]['passtime']).total_seconds() > max_stay_time:
+                od.append((traj[i-1], traj[i]))
+
+        ods[car] = od
+
+    fname = os.path.join(root_dir,"result","test_od.txt")
+    with open(fname,"w") as f:
+        for car,od in cars.iteritems():
+            line = "%s: %s\n" % (car[0].encode('gbk'),str(od))
+            f.write(line)
+
+
+    return ods
+
 def create_od_tree(travels):
     """
     list of travels list.
     """
-    from collections import defaultdict
 
     od = defaultdict(lambda: 0)
     # d = defaultdict(lambda: 0)
@@ -646,21 +758,29 @@ def get_day_travel_span(travel_list):
 
 
 if __name__ == '__main__':
-    begtime = datetime(2015,6,1,0,0,0)
-    endtime = datetime(2015,6,2,0,0,0)
+    begtime = datetime(2015,6,1,0,10,0)
+    endtime = datetime(2015,6,1,0,20,0)
 
-    numb = u"鄂AF8R13".encode("gbk")
-    traj = query_vehicle_trajetory(numb,"02",begtime,endtime)
-    res = estimate_vehicle_freq(traj)
+    cid = 2
+    r = request_passcar(begtime,endtime)
+    print 'totally %d passcars.' % (len(r))
+    for i in xrange(5):
+        print r[i]['passtime']
+
+    cars = extract_travel_list(r)
+
+    # numb = u"鄂AF8R13".encode("gbk")
+    # traj = query_vehicle_trajetory(numb,"02",begtime,endtime)
+    # res = estimate_vehicle_freq(traj)
 
     # for elem in res:
     #     for e in elem:
     #         print e
     #     print
-    print 'totally %d going-out.' % (len(res))
+    # print 'totally %d going-out.' % (len(res))
 
-    span,count = get_day_travel_span(res)
-    print 'travel total span:', span, "count:",count
+    # span,count = get_day_travel_span(res)
+    # print 'travel total span:', span, "count:",count
 
     # od = create_od_tree(res)
     # # for k,v in od.iteritems():

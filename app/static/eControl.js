@@ -16,13 +16,6 @@ myControl.prototype.initialize = function(map) {
 
     // div.text('degree');
     var div = $("<div id='div-degree'></div>");
-    // (function () {
-
-
-    //     $.getJSON('/load-map-control',{},function (json) {
-    //         div.html(json.data);
-    //     })
-    // }) ();
 
     $.getJSON('/load-map-control',{},function (json) {
         div.html(json.data);

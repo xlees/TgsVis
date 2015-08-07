@@ -63,6 +63,7 @@
 		var n_unavail;
 		var n_markers = 0;
 		var adj = [];
+        var edges = {};
 
 		var ak = "Dafb6wSsEnWv8QnT3TOcAfk7";
 
@@ -87,7 +88,7 @@
             $('#mbox div').append(mbox);
 
             // msg.alert();
-            mbox.fadeTo(2500, 500).slideUp(500, function() {
+            mbox.fadeTo(2500, 1.0).slideUp(600, function() {
                mbox.alert('close');      // close the message box.
             });
 
@@ -156,26 +157,6 @@
             }
 		});
 
-
-
-		// var marker = new BMap.Marker(point);        // 创建标注
-		// map.addOverlay(marker);                     // 将标注添加到地图中
-		// marker.addEventListener("click", function(){
-		//  	alert("您点击了哥!");
-		// });
-
-		// marker.addEventListener("mouseover", function(){
-		//  	console.log("您进入了哥的地盘!");
-		//  	map.openInfoWindow(infoWindow, this.getPosition());      // 打开信息窗口
-		// });
-		// marker.addEventListener("mouseout", function(){
-		//  	console.log("您离开了哥的地盘!");
-		//  	map.closeInfoWindow();
-		// });
-
-		// window.setTimeout(function(){
-		//     map.panTo(point);
-		// }, 3000);
 	</script>
 
     <script src="{{ url_for('static', filename='eControl.js') }}"></script>

@@ -218,32 +218,16 @@ def query_vehicle():
 
 @app.route('/get-adj')
 def get_adj_tgs():
-
-    volume = read_tgs_volume("data/volume.txt")
-
-    adj = Counter()
-    with open("filterd_pairs.txt","r") as f:
-        for line in f.readlines():
-            pair = tuple(line.split(":")[0].split(","))
-            adj[pair] = float(line.split(":")[1].split(",")[0])
-
-    # adj = read_adj("data/week_adj.txt")
-    # assoc = calc_assoc(volume,adj)
-
-    # result = assoc.most_common()
-    # filtered = filter(lambda x: x[1]>0.1, result)
-
-    print '%d edges...' % (len(adj))
-
-    # standardize
-    vol = volume.most_common()
-    vol1 = [(item[0],float(item[1]-vol[-1][1]) / (vol[0][1]-vol[-1][1])) for item in vol]
+    adj = {}
+    for cid,info in adj_out.iteritems():
+        # vol = 0
+        n = 4 if len(info)>4 else len(info)
+        for i in xrange(n):
+            adj["%s,%s" % (cid,info[i][0])] = info[i][1]
 
     ret = {
         'status': 0,
-        # 'data': [[item[0][0],item[0][1],item[1]] for item in filtered],
-        'data': [[val[0][0],val[0][1],val[1]] for val in adj.items()],
-        'volume': dict(vol1),
+        'data': adj,
     }
 
     return jsonify(ret)

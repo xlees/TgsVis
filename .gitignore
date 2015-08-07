@@ -51,6 +51,7 @@ coverage.xml
 *.log
 
 *.db
+*.pkl
 
 # Sphinx documentation
 docs/_build/
