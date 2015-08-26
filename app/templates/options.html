@@ -85,6 +85,15 @@
         </div>
     </div>
 
+    <div class="row">
+        <div class="input-group">
+            <span class="input-group-addon">所有关联边</span>
+            <div id="myswitch" class="switch" data-on="danger">
+                <input type="checkbox" name='my-checkbox' checked />
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -97,6 +106,11 @@
         enableMessage: false
     }
     infowin = new BMap.InfoWindow("", opts);
+
+    $("[name='my-checkbox']").bootstrapSwitch();
+    // $("#all-edges").on("change",function(e,data) {
+    //     console.log(e,data);
+    // })
 
     $('#btn-remove').hide();
     $('#btn-remove').click(function(event) {
