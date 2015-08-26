@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(root_dir,"app","gen-py"))
 
 import numpy as np
 from collections import Counter,defaultdict
+from dateutil.relativedelta import relativedelta
 # np.seterr(divide='ignore', invalid='ignore')
 
 
@@ -479,7 +480,7 @@ def query_vehicle_trajetory(numb,ptype,stime,etime):
             if numb_type != int(ptype):
                 continue
 
-            passtime = datetime.fromtimestamp(struct.unpack(">Q",elem.row[10:18])[0]/1000.0).strftime("%Y-%m-%d %H:%M:%S")
+            passtime = datetime.fromtimestamp(struct.unpack(">Q",elem.row[10:18])[0]/1000.0)
             cid = shd.unbyte_cid(elem.row[18:20])
             drivedir = struct.unpack("B",elem.columns['cf:'].value[37:38])[0]
 
@@ -567,7 +568,7 @@ def estimate_vehicle_freq(traj):
     result = []
     start = 0
     for i in xrange(1,len(traj)):
-        ttime = (parse(traj[i][0]) - parse(traj[i-1][0])).total_seconds()
+        ttime = (traj[i][0] - traj[i-1][0]).total_seconds()
         if ttime > max_stay_time:
             result.append(traj[start:i])
             start = i
@@ -575,6 +576,62 @@ def estimate_vehicle_freq(traj):
     result.append(traj[start:])
 
     return result
+
+def query_tgs_cars(cid,stime,etime):
+    tbl = "tr_bay_jun"
+
+    b_cid = shd.byte_cid(cid)
+    begtime = long(time.mktime(stime.timetuple())*1000)
+    endtime = long(time.mktime(etime.timetuple())*1000)
+
+    (client,trpt) = shd.get_thrift_client(host,port)
+
+    trpt.open()
+
+    scan = htt.TScan()
+    scan.columns = ['cf:']
+    scan.caching = 110
+    # scan.filterString = "RowFilter(=, 'substring:%s') AND KeyOnlyFilter()" % (numb)
+    # scan.filterString = "KeyOnlyFilter()"
+    scan.startRow = struct.pack(">2sQ", b_cid, begtime)
+    scan.stopRow = struct.pack(">2sQ", b_cid, endtime)
+
+    scanner = client.scannerOpenWithScan(tbl,scan,None)
+
+    result = Counter()
+    while 1:
+        dataset = client.scannerGetList(scanner,shd.buf_max_size)
+
+        for elem in dataset:
+            numb = elem.row[10:].decode('gbk')
+            ptype = struct.unpack("B",elem.columns['cf:'].value[35:36])[0]
+
+            result[(numb,ptype)] += 1
+
+        if len(dataset) < shd.buf_max_size:
+            break
+
+    trpt.close()
+
+    return result
+
+def query_cars(stime,etime):
+    """
+    query cars between stime and etime.
+    """
+    from multiprocessing.pool import Pool
+
+    tgsinfo = shd.read_tgs_info()
+
+    pool = Pool()
+    result = [pool.apply_async(query_tgs_cars,args=(int(cid),stime,etime)) for cid in tgsinfo.keys()]
+    pool.close()
+    pool.join()
+
+    result1 = [elem.get() for elem in result]
+    ret = reduce(lambda x,y: x+y, result1)
+
+    return ret
 
 def _request_passcar(cid, stime,etime):
     tbl = "tr_bay_jun"
@@ -637,7 +694,11 @@ def request_passcar(stime,etime,car_only=False):
         with open(cname,"rb") as f:
             result = pickle.load(f)
 
-        return result
+        if car_only:
+            cars = [(elem['numb'],elem['ptype']) for elem in result]
+            return set(cars)
+        else:
+            return result
 
     tgsinfo = shd.read_tgs_info()
 
@@ -661,6 +722,68 @@ def request_passcar(stime,etime,car_only=False):
         return set(cars)
     else:
         return ret
+
+def _get_travel_list(numb,ptype,stime,etime):
+
+    traj = query_vehicle_trajetory(numb,ptype,stime,etime)
+
+    return estimate_vehicle_freq(traj)
+
+
+def query_od_info(stime,etime):
+    from multiprocessing.pool import Pool
+
+    # cars = request_passcar(stime,etime,car_only=True)
+    cars = query_cars(stime,etime)
+
+    print "totally %d car." % (len(cars))
+
+    max_stay_time = 50
+    stime1 = stime + relativedelta(minutes=-max_stay_time)
+    etime1 = etime + relativedelta(minutes=+max_stay_time)
+
+    travel_traj = []
+    pool = Pool(8)
+    result = [pool.apply_async(_get_travel_list, args=(car[0].encode('gbk'),car[1],stime1,etime1)) for car in cars.keys()]
+    pool.close()
+
+    print 'waiting for finishing...'
+    pool.join()
+
+    result1 = [elem.get() for elem in result]
+
+    print 'merging...'
+    travel_traj = reduce(lambda x,y: x+y, result1)
+
+    print 'calculating O and D....'
+    O = []
+    D = []
+    for elem in travel_traj:
+        if len(elem) < 2:
+            continue
+
+        if elem[0][0]>=stime and elem[0][0]<etime:
+            O.append(elem)
+
+        if elem[-1][0]>=stime and elem[-1][0]<etime:
+            D.append(elem)
+
+    # stat top 5 tgs
+    top_o = Counter()
+    top_d = Counter()
+    for e in O:
+        top_o[e[1]] += 1
+    for e in D:
+        top_d[e[1]] += 1
+
+    ret = {
+        'n_cars': len(cars),
+        'O': {'volume':len(O), 'top':top_o.most_common(10)},
+        'D': {'volume':len(D), 'top':top_d.most_common(10)},
+    }
+
+    return ret
+
 
 def extract_travel_list(passcar):
     cars = defaultdict(lambda: [])
@@ -750,24 +873,55 @@ def get_day_travel_span(travel_list):
         if len(elem) < 2:
             continue
 
-        # print elem
-
-        span += (parse(elem[-1][0])-parse(elem[0][0])).total_seconds() / 3600.0
+        span += (elem[-1][0]-elem[0][0]).total_seconds() / 3600.0
 
     return (span,count)
 
 
 if __name__ == '__main__':
-    begtime = datetime(2015,6,1,0,10,0)
-    endtime = datetime(2015,6,1,0,20,0)
+    begtime = datetime(2015,6,1,0,0,0)
+    endtime = datetime(2015,6,2,0,0,0)
 
-    cid = 2
-    r = request_passcar(begtime,endtime)
-    print 'totally %d passcars.' % (len(r))
-    for i in xrange(5):
-        print r[i]['passtime']
+    cid = 585
+    cars = query_tgs_cars(cid,begtime,endtime).most_common()
+    cars.sort(key=lambda x: x[0][1], reverse=False)
+    with open(os.path.join(root_dir,"result","veh_stat_%d.txt" % (cid)), "w") as f:
+        for e in cars:
+            indx = e[0][0].find('\x00')
+            line = "%8s,%2d: %d\n" % (e[0][0][:indx],e[0][1],e[1])
+            f.write(line)
+    print 'finished.'
 
-    cars = extract_travel_list(r)
+    # r = query_cars(begtime,endtime)
+    # print '%d cars fetched.' % (len(r))
+    # with open(os.path.join(root_dir,"result","veh_stat.txt"), "w") as f:
+    #     for e in r.most_common():
+    #         indx = e[0][0].find('\x00')
+    #         line = "%8s,%2d: %d\n" % (e[0][0][:indx],e[0][1],e[1])
+    #         f.write(line)
+    # print 'written finished.'
+
+
+
+    # ret = query_od_info(begtime,endtime)
+    # print "O:\n"
+    # print 'volume:',ret['O']['volume']
+    # for e in ret['O']['top']:
+    #     print "%5d,%s-->%d" % (e[0][1],e[0][0].strftime('%Y-%m-%d %H:%M:%S'),e[1])
+    # print
+
+    # print "D:\n"
+    # print 'volume:',ret['D']['volume']
+    # for e in ret['D']['top']:
+    #     print "%5d,%s-->%d" % (e[0][1],e[0][0].strftime('%Y-%m-%d %H:%M:%S'),e[1])
+
+    # cid = 2
+    # r = request_passcar(begtime,endtime)
+    # print 'totally %d passcars.' % (len(r))
+    # for i in xrange(5):
+    #     print r[i]['passtime']
+
+    # cars = extract_travel_list(r)
 
     # numb = u"鄂AF8R13".encode("gbk")
     # traj = query_vehicle_trajetory(numb,"02",begtime,endtime)

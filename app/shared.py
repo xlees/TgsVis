@@ -69,6 +69,25 @@ def daily(begtime,endtime):
 
     return tseries
 
+def get_tseries(begtime,endtime,freq=HOURLY,interval=1):
+    """
+    get time series given freqency and interval.
+    """
+    two_list = list(rrule(freq,dtstart=begtime,interval=interval, count=2))
+    secs = (two_list[1]-two_list[0]).total_seconds()
+
+    duration = (endtime-begtime).total_seconds()
+    if duration <= 0.0:
+        tseries = []
+    elif duration > secs:
+        tseries = list(rrule(freq,interval=interval,dtstart=begtime,until=endtime))
+        if tseries[-1] < endtime:
+            tseries.append(endtime)
+    else:
+        tseries = [begtime, endtime]
+
+    return tseries if len(tseries)>0 else []
+
 def transform(row):
     # loc = EvilTransform.transform(row['Y'],row['X'])
 

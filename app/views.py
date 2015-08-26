@@ -173,7 +173,6 @@ def get_ddata():
 
     return jsonify({'datetime':dtime, 'd':d})
 
-@app.route('/')
 @app.route('/index')
 def index():
     context = {
@@ -182,6 +181,7 @@ def index():
 
     return render_template("index.html")
 
+@app.route('/')
 @app.route('/index1')
 def index1():
     context = {
