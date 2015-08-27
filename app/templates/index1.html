@@ -13,6 +13,16 @@
     <script src="{{ url_for('static', filename='jquery-1.11.1.min.js') }}"></script>
     <script src="{{ url_for('static', filename='jquery-ui-1.11.2/jquery-ui.min.js') }}"></script>
 
+    <link href="{{ url_for('static', filename='ladda-bootstrap/dist/ladda-themeless.min.css') }}" rel="stylesheet">
+    <script src="{{ url_for('static', filename='ladda-bootstrap/dist/spin.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='ladda-bootstrap/dist/ladda.min.js') }}"></script>
+
+    <script src="{{ url_for('static', filename='DataTables-1.10.8/media/js/jquery.dataTables.min.js') }}"></script>
+    <link href="{{ url_for('static', filename='DataTables-1.10.8/media/css/jquery.dataTables.min.css') }}" rel="stylesheet">
+
+    <script src="{{ url_for('static', filename='DataTables-1.10.8/extensions/Select/js/dataTables.select.min.js') }}"></script>
+    <link href="{{ url_for('static', filename='DataTables-1.10.8/extensions/Select/css/select.dataTables.min.css') }}" rel="stylesheet">
+
     <script src="{{ url_for('static', filename='d3.min.js') }}"></script>
     <script src="{{ url_for('static', filename='cal-heatmap.min.js') }}"></script>
     <script src="{{ url_for('static', filename='zh_cn.js') }}"></script>
@@ -118,6 +128,8 @@
 		$.getJSON("/request-tgs-info", {}, function(json) {
 
 			tgsinfo = json.data;
+
+            // console.log(tgsinfo);
 
 			n_avail = 0;
 			n_unavail = 0;

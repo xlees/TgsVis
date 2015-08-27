@@ -65,7 +65,7 @@
 
     <!-- </form> -->
 
-    <div class="row" style="margin-bottom: 35px;">
+    <div class="row" style="margin-bottom: 25px;">
         <div class="col-md-12 col-md-offset-0">
             <div class="input-group">
                 <input id="input-numb" type="text" class="form-control" placeholder="输入车牌或卡口查询..." style="z-index: 0;">
@@ -85,13 +85,35 @@
         </div>
     </div>
 
-    <div class="row">
+    <!-- <div class="row">
         <div class="input-group">
             <span class="input-group-addon">所有关联边</span>
             <div id="myswitch" class="switch" data-on="danger">
                 <input type="checkbox" name='my-checkbox' checked />
             </div>
         </div>
+    </div> -->
+
+    <div id="od-path" class="row" style="padding: 10px;">
+        <div class="input-group" style="margin-bottom: 18px;">
+            <span class="input-group-addon">路径长度:</span>
+            <input id="path-length" type="text" placeholder="至少为2" />
+        </div>
+
+        <button id="btn-query-od-path" type="submit" class="btn btn-primary ladda-button" data-style="slide-down">
+            <span class="ladda-label">查询</span>
+        </button>
+    </div>
+
+    <div id="div-od-table" class="row" style="display: none;">
+        <table id="tbl-od-path" class="display" width="110%">
+            <thead>
+                <tr>
+                    <th>OD路径</th>
+                    <th>热度</th>
+                </tr>
+            </thead>
+        </table>
     </div>
 
 </div>
@@ -107,10 +129,154 @@
     }
     infowin = new BMap.InfoWindow("", opts);
 
-    $("[name='my-checkbox']").bootstrapSwitch();
+    // Ladda.bind('button[type=submit]');
+
+    // $("[name='my-checkbox']").bootstrapSwitch();
     // $("#all-edges").on("change",function(e,data) {
     //     console.log(e,data);
     // })
+
+    // $('#div-od-table').hide();
+
+    $(document).ready(function() {
+
+        tbl_od = $('#tbl-od-path').DataTable({
+            dom: '<"top"i>rt<"bottom"flp><"clear">',
+            // data: [['1,2,3',23],['2,3,4',89]],
+            pageLength: 10,
+            // info: false,
+            paging: true,
+            order: [[1,'desc']],
+            searching: false,
+            scrollY: "300px",
+            select: 'single',
+            autoWidth: false,
+            columnDefs: [
+                {
+                    targets: 0,
+                    "width": "70%",
+                    searchable: true
+                },
+                {
+                    targets: 1,
+                    searchable: true
+                },
+            ],
+        });
+
+        $('#tbl-od-path tbody').on('click','tr', function() {
+            // alert('fff');
+
+            var path = $(this).children(":first").text();
+            console.log(path);
+
+            map.clearOverlays();
+
+            // draw path on the map
+            var cid_seq = path.split('-');
+
+            var lng = 0.0;
+            var lat = 0.0;
+
+            var line_path = [];
+
+            for (var i=0; i<cid_seq.length; i++) {
+
+                (function (i,cid) {
+
+                    var _indx = -1;
+                    for (var j=0; j<tgs_markers.length; j++) {
+                        if (tgs_markers[j].cid == cid) {
+                            _indx = j;
+                            break;
+                        }
+                    }
+
+                    if (_indx == -1)
+                        return;
+
+                    lng += tgsinfo[cid]['lng'];
+                    lat += tgsinfo[cid]['lat'];
+
+                    line_path.push(new BMap.Point(tgsinfo[cid]['lng'], tgsinfo[cid]['lat']));
+
+                    var marker = jQuery.extend(true,{},tgs_markers[_indx].marker);
+
+                    if (i == 0) {
+                        marker.setIcon(new BMap.Icon("{{ url_for('static', filename='start.png') }}",
+                                            new BMap.Size(36,36)));
+                    }
+                    else if (i == (cid_seq.length-1)) {
+                        marker.setIcon(new BMap.Icon("{{ url_for('static', filename='end.png') }}",
+                                            new BMap.Size(36,36)));
+                    }
+                    else {
+                        marker.setIcon(new BMap.Icon("{{ url_for('static', filename='m6.png') }}",
+                                            new BMap.Size(30,30)));
+                    }
+
+                    marker.setZIndex(999);
+
+                    marker.addEventListener("click", function(e) {
+
+                        infowin.setContent(tgs_markers[_indx].info);
+                        map.openInfoWindow(infowin, e.point);
+                    });
+
+                    map.addOverlay(marker);
+
+                }) (i,cid_seq[i]);
+            }
+
+            var polyline = new BMap.Polyline(line_path, {
+                strokeColor: "#666666",
+                strokeOpacity: 0.7,
+                strokeWeight: 5.5,
+                strokeStyle: "solid",
+            });
+            map.addOverlay(polyline);
+
+
+            var center = new BMap.Point(lng/cid_seq.length, lat/cid_seq.length);
+            map.centerAndZoom(center,13);
+        });
+    });
+
+
+    $('#btn-query-od-path').click(function() {
+
+        var path_length = $('#path-length').val().trim();
+        if (path_length == "") {
+            mbox("输入为空!");
+        }
+
+        var btn = $(this);
+        // btn.button('loading');
+
+        var l = Ladda.create(this);
+        l.start();
+
+        if (typeof(cal) != "undefined") {
+            $('#row-freq-heatmap').slideUp("fast");
+            cal = null;
+        }
+
+        $.getJSON('/get-route-at', {'path-length': path_length}, function(json) {
+
+            l.stop();
+
+            tbl_od.clear();
+            for (var i=0; i<json.data.length; i++) {
+
+                tbl_od.row.add(json.data[i]);
+            }
+            tbl_od.draw();
+
+            $('#div-od-table').slideDown('fast', function() {
+            });
+        });
+
+    });
 
     $('#btn-remove').hide();
     $('#btn-remove').click(function(event) {
@@ -626,6 +792,10 @@
 
     $('#query-vehicle').click(function() {
 
+        $('#div-od-table').slideUp("fast", function() {
+            tbl_od.clear();
+        });
+
         if (typeof(adj)!= "undefined" && adj.length>0) {
             for (var i in adj) {
                 // console.log(i);
@@ -684,7 +854,7 @@
         else {
             console.log("numb input");
 
-            var cal = new CalHeatMap();
+            cal = new CalHeatMap();
             $.getJSON("/get-day-travel-span",
                     {"begtime":"2015-06-01", "endtime":"2015-07-01","ptype":"02","numb":cont},
 

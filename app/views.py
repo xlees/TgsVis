@@ -6,6 +6,7 @@ import pandas as pd
 import json
 import time
 import math
+import os
 
 # from app.helper import EvilTransform
 # from test.test_asso import *
@@ -21,6 +22,40 @@ tgsinfo = shd.read_tgs_info()               # all tgs info
 adj_out = aly.load_adj_info(False)
 adj_in = aly.load_adj_info(True)
 
+
+@app.route('/get-route-at')
+def get_route_at():
+    max_lines = 150
+
+    path_len = request.args.get('path-length',2,type=int)
+
+    print 'path length=',path_len
+
+    fname = os.path.join(shd.root_dir,'data','od-routes', '%d.txt' % (path_len))
+    if not os.path.exists(fname):
+        print 'length of %d not exists.' % (path_len)
+        return jsonify({'status':1, 'msg':u'路径长度有误！'.encode('utf-8')})
+
+    routes = []
+    cnt = 0
+    with open(fname,'r') as f:
+        for line in f.readlines():
+            key,val = line[:-1].split(':')
+            # routes[key] = int(val)
+            routes.append((key.replace(",","-"), int(val)))
+
+            cnt += 1
+            if cnt > max_lines:
+                break
+
+    print '%d routes fetched.' % (len(routes))
+
+    ret = {
+        'status': 0,
+        'data': routes,
+    }
+
+    return jsonify(ret)
 
 @app.route('/get-day-travel-span')
 def get_day_travel_span():
